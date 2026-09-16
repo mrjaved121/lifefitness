@@ -47,13 +47,3 @@ export interface MemberWithPlan extends Member {
   plans: Pick<Plan, "id" | "name" | "duration_days" | "price"> | null;
 }
 
-export interface Database {
-  public: {
-    Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
-      plans: { Row: Plan; Insert: Partial<Plan>; Update: Partial<Plan> };
-      members: { Row: Member; Insert: Partial<Member>; Update: Partial<Member> };
-      payments: { Row: Payment; Insert: Partial<Payment>; Update: Partial<Payment> };
-    };
-  };
-}

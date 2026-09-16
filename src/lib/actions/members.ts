@@ -19,13 +19,20 @@ export async function createMember(_prevState: ActionState, formData: FormData):
   const email = String(formData.get("email") || "").trim() || null;
   const plan_id = String(formData.get("plan_id") || "") || null;
   const start_date = String(formData.get("start_date") || "");
-  const duration_days = Number(formData.get("duration_days") || 0);
 
   if (!full_name || !start_date || !plan_id) {
     return { error: "Name, plan, and start date are required." };
   }
 
-  const end_date = addDays(start_date, duration_days);
+  const { data: plan, error: planError } = await supabase
+    .from("plans")
+    .select("duration_days")
+    .eq("id", plan_id)
+    .single();
+
+  if (planError || !plan) return { error: "Selected plan was not found." };
+
+  const end_date = addDays(start_date, plan.duration_days);
 
   const { data, error } = await supabase
     .from("members")
@@ -68,6 +75,17 @@ export async function updateMember(id: string, _prevState: ActionState, formData
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
   redirect(`/members/${id}`);
+}
+
+export async function toggleFreeze(id: string, freeze: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("members")
+    .update({ status: freeze ? "frozen" : "active" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/members");
+  revalidatePath(`/members/${id}`);
 }
 
 export async function deleteMember(id: string) {
