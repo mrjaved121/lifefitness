@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate, daysUntil, todayStr, addDays } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  daysUntil,
+  todayStr,
+  addDays,
+  whatsAppReminderLink,
+  emailReminderLink,
+} from "@/lib/format";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -13,7 +21,7 @@ export default async function DashboardPage() {
     supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "expired"),
     supabase
       .from("members")
-      .select("id, full_name, end_date, phone")
+      .select("id, full_name, end_date, phone, email")
       .eq("status", "active")
       .lte("end_date", weekOut)
       .order("end_date", { ascending: true }),
@@ -55,13 +63,33 @@ export default async function DashboardPage() {
               {expiringSoon.data.map((m) => {
                 const days = daysUntil(m.end_date);
                 return (
-                  <li key={m.id} className="flex items-center justify-between py-2 text-sm">
+                  <li key={m.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                     <Link href={`/members/${m.id}`} className="font-medium text-gray-900 hover:underline">
                       {m.full_name}
                     </Link>
-                    <span className={days < 0 ? "text-red-600" : days <= 2 ? "text-orange-600" : "text-gray-500"}>
-                      {days < 0 ? `Expired ${formatDate(m.end_date)}` : days === 0 ? "Expires today" : `${days}d left`}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className={days < 0 ? "text-red-600" : days <= 2 ? "text-orange-600" : "text-gray-500"}>
+                        {days < 0 ? `Expired ${formatDate(m.end_date)}` : days === 0 ? "Expires today" : `${days}d left`}
+                      </span>
+                      {m.phone && (
+                        <a
+                          href={whatsAppReminderLink(m.phone, m.full_name, m.end_date)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-green-700 hover:underline"
+                        >
+                          WhatsApp
+                        </a>
+                      )}
+                      {m.email && (
+                        <a
+                          href={emailReminderLink(m.email, m.full_name, m.end_date)}
+                          className="text-xs font-medium text-blue-700 hover:underline"
+                        >
+                          Email
+                        </a>
+                      )}
+                    </div>
                   </li>
                 );
               })}

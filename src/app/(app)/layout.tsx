@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile, isSuperAdmin } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
+import { BarbellIcon } from "@/components/BarbellIcon";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -19,7 +20,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-1">
       <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
-        <div className="border-b border-gray-200 px-5 py-4">
+        <div className="flex items-center gap-2 border-b border-gray-200 px-5 py-4">
+          <BarbellIcon className="h-5 w-5 text-gray-900" />
           <span className="text-lg font-semibold text-gray-900">GymDesk</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">

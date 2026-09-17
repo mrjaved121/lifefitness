@@ -37,3 +37,17 @@ export function addDays(dateStr: string, days: number) {
 export function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
+
+export function whatsAppReminderLink(phone: string, fullName: string, endDate: string) {
+  const digits = phone.replace(/\D/g, "");
+  const status = daysUntil(endDate) < 0 ? "expired" : "expires";
+  const message = `Hi ${fullName}, this is a reminder from GymDesk — your membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+export function emailReminderLink(email: string, fullName: string, endDate: string) {
+  const status = daysUntil(endDate) < 0 ? "expired" : "expires";
+  const subject = "Membership renewal reminder";
+  const body = `Hi ${fullName},\n\nThis is a reminder that your GymDesk membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.\n\nThanks!`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
