@@ -8,7 +8,7 @@
 create table if not exists profiles (
   id uuid references auth.users on delete cascade primary key,
   full_name text,
-  role text check (role in ('owner', 'front_desk')) not null default 'front_desk',
+  role text check (role in ('owner', 'front_desk', 'super_admin')) not null default 'front_desk',
   created_at timestamptz default now()
 );
 
@@ -124,11 +124,22 @@ security definer
 set search_path = public
 stable
 as $$
-  select exists (select 1 from profiles where id = auth.uid() and role = 'owner');
+  select exists (select 1 from profiles where id = auth.uid() and role in ('owner', 'super_admin'));
+$$;
+
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from profiles where id = auth.uid() and role = 'super_admin');
 $$;
 
 grant execute on function public.is_staff() to authenticated;
 grant execute on function public.is_owner() to authenticated;
+grant execute on function public.is_super_admin() to authenticated;
 
 -- ============================================================
 -- 6. RENEW MEMBERSHIP RPC
@@ -190,7 +201,40 @@ $$;
 grant execute on function public.renew_membership(uuid, uuid, numeric, text, text, uuid) to authenticated;
 
 -- ============================================================
--- 7. ROW LEVEL SECURITY
+-- 7. LIST STAFF RPC
+-- Called from src/app/(app)/staff/page.tsx. Joins profiles with
+-- auth.users (not exposed to the client directly) so super admins
+-- can see who each account belongs to before changing their role.
+-- ============================================================
+
+create or replace function public.list_staff()
+returns table (
+  id uuid,
+  email text,
+  full_name text,
+  role text,
+  created_at timestamptz
+)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if not is_owner() then
+    raise exception 'Not authorized';
+  end if;
+
+  return query
+    select p.id, u.email, p.full_name, p.role, p.created_at
+    from profiles p
+    join auth.users u on u.id = p.id
+    order by p.created_at asc;
+end;
+$$;
+
+grant execute on function public.list_staff() to authenticated;
+
+-- ============================================================
+-- 8. ROW LEVEL SECURITY
 -- ============================================================
 
 alter table profiles enable row level security;
@@ -198,7 +242,9 @@ alter table plans enable row level security;
 alter table members enable row level security;
 alter table payments enable row level security;
 
--- PROFILES: everyone can see/update their own row; owners can see/manage all rows.
+-- PROFILES: everyone can see/update their own row; owners can see all
+-- rows, but only super admins can change another account's role (that's
+-- the whole point of a tier above owner) or other fields.
 create policy "profiles_select_own" on profiles
   for select using (id = auth.uid());
 
@@ -209,8 +255,8 @@ create policy "profiles_update_own" on profiles
   for update using (id = auth.uid())
   with check (id = auth.uid());
 
-create policy "profiles_update_owner_all" on profiles
-  for update using (is_owner());
+create policy "profiles_update_super_admin_all" on profiles
+  for update using (is_super_admin());
 
 -- PLANS: any signed-in staff can view; only owners can create/edit/delete.
 create policy "plans_select_staff" on plans

@@ -19,5 +19,9 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 }
 
 export function isOwner(profile: Profile | null) {
-  return profile?.role === "owner";
+  return profile?.role === "owner" || profile?.role === "super_admin";
+}
+
+export function isSuperAdmin(profile: Profile | null) {
+  return profile?.role === "super_admin";
 }

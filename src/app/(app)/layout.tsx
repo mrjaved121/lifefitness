@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentProfile, isSuperAdmin } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 
 const NAV_LINKS = [
@@ -14,6 +14,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
+  const navLinks = isSuperAdmin(profile) ? [...NAV_LINKS, { href: "/staff", label: "Staff" }] : NAV_LINKS;
+
   return (
     <div className="flex min-h-screen flex-1">
       <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white">
@@ -21,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-lg font-semibold text-gray-900">GymDesk</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}

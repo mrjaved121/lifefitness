@@ -1,4 +1,4 @@
-export type Role = "owner" | "front_desk";
+export type Role = "owner" | "front_desk" | "super_admin";
 export type MemberStatus = "active" | "expired" | "frozen";
 export type PaymentMethod = "cash" | "card" | "bank_transfer";
 
