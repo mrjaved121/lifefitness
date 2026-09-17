@@ -11,7 +11,10 @@ export default async function NewMemberPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-900">Add member</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-heading">Add Member</h1>
+        <p className="mt-1 text-sm text-body">Enroll a new member and start their membership.</p>
+      </div>
       <MemberForm plans={plans || []} />
     </div>
   );

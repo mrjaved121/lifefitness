@@ -2,8 +2,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Avatar } from "@/components/Avatar";
-import { formatDate } from "@/lib/format";
-import type { MemberStatus } from "@/types/database";
+import { LinkButton } from "@/components/LinkButton";
+import { formatDate, todayStr, addDays } from "@/lib/format";
+
+const FILTERS = [
+  { value: "", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "expiring", label: "Expiring" },
+  { value: "expired", label: "Expired" },
+];
 
 export default async function MembersPage({
   searchParams,
@@ -24,89 +31,139 @@ export default async function MembersPage({
     const term = `%${q}%`.replace(/"/g, '\\"');
     query = query.or(`full_name.ilike."${term}",phone.ilike."${term}",email.ilike."${term}"`);
   }
-  if (status) {
-    query = query.eq("status", status as MemberStatus);
+  if (status === "expiring") {
+    query = query.eq("status", "active").lte("end_date", addDays(todayStr(), 7));
+  } else if (status) {
+    query = query.eq("status", status);
   }
 
   const { data: members, error } = await query;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Members</h1>
-        <Link
-          href="/members/new"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-        >
-          Add member
-        </Link>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-heading">Members</h1>
+          <p className="mt-1 text-sm text-body">Manage memberships, plans and member information.</p>
+        </div>
+        <LinkButton href="/members/new">+ Add Member</LinkButton>
       </div>
 
-      <form className="flex gap-3">
+      <form className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Search name, phone, or email"
-          className="w-72 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+          placeholder="Search members..."
+          className="w-full min-w-0 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-heading placeholder:text-muted focus:border-primary focus:outline-none sm:w-72"
         />
-        <select
-          name="status"
-          defaultValue={status || ""}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+        {status && <input type="hidden" name="status" value={status} />}
+        <button
+          type="submit"
+          className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-heading hover:bg-app-bg sm:w-auto"
         >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="expired">Expired</option>
-          <option value="frozen">Frozen</option>
-        </select>
-        <button type="submit" className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100">
-          Filter
+          Search
         </button>
       </form>
 
-      {error && <p className="text-sm text-red-600">{error.message}</p>}
-
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Phone</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Plan</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Expires</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {members?.map((m) => (
-              <tr key={m.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <Link href={`/members/${m.id}`} className="flex items-center gap-3 font-medium text-gray-900 hover:underline">
-                    <Avatar src={m.photo_url} name={m.full_name} className="h-8 w-8 shrink-0 text-xs" />
-                    {m.full_name}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-gray-500">{m.phone || "—"}</td>
-                <td className="px-4 py-3 text-gray-500">
-                  {(m.plans as unknown as { name: string } | null)?.name ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-gray-500">{formatDate(m.end_date)}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={m.status} />
-                </td>
-              </tr>
-            ))}
-            {members?.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                  No members found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => {
+            const params = new URLSearchParams();
+            if (q) params.set("q", q);
+            if (f.value) params.set("status", f.value);
+            const href = params.toString() ? `/members?${params.toString()}` : "/members";
+            const active = (status || "") === f.value;
+            return (
+              <Link
+                key={f.value}
+                href={href}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  active ? "bg-primary text-white" : "border border-border bg-surface text-body hover:bg-app-bg"
+                }`}
+              >
+                {f.label}
+              </Link>
+            );
+          })}
+        </div>
+        <p className="text-sm text-muted">{members?.length ?? 0} members</p>
       </div>
+
+      {error && <p className="text-sm text-danger">{error.message}</p>}
+
+      {members && members.length === 0 ? (
+        <div className="rounded-xl border border-border bg-surface p-12 text-center">
+          <p className="text-sm font-medium text-heading">No members found</p>
+          <p className="mt-1 text-sm text-muted">
+            {q || status ? "Try a different search or filter." : "Add your first member to start managing your gym."}
+          </p>
+          {!q && !status && (
+            <div className="mt-4">
+              <LinkButton href="/members/new">+ Add Member</LinkButton>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface md:block">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-app-bg">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-muted">Member</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted">Contact</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted">Plan</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted">Expires</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {members?.map((m) => (
+                  <tr key={m.id} className="hover:bg-app-bg">
+                    <td className="px-4 py-3">
+                      <Link href={`/members/${m.id}`} className="flex items-center gap-3 font-medium text-heading hover:text-primary">
+                        <Avatar src={m.photo_url} name={m.full_name} className="h-9 w-9 shrink-0 text-xs" />
+                        {m.full_name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-body">{m.phone || m.email || "—"}</td>
+                    <td className="px-4 py-3 text-body">{(m.plans as unknown as { name: string } | null)?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-body">{formatDate(m.end_date)}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={m.status} endDate={m.end_date} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {members?.map((m) => (
+              <Link
+                key={m.id}
+                href={`/members/${m.id}`}
+                className="rounded-xl border border-border bg-surface p-4 active:bg-app-bg"
+              >
+                <div className="flex items-center gap-3">
+                  <Avatar src={m.photo_url} name={m.full_name} className="h-10 w-10 shrink-0 text-sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-heading">{m.full_name}</p>
+                    <p className="truncate text-sm text-muted">{(m.plans as unknown as { name: string } | null)?.name ?? "No plan"}</p>
+                  </div>
+                  <StatusBadge status={m.status} endDate={m.end_date} />
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
+                  <span className="text-muted">Expires</span>
+                  <span className="font-medium text-heading">{formatDate(m.end_date)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

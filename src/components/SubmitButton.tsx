@@ -1,24 +1,23 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
+import { buttonVariants, type ButtonVariant } from "./buttonStyles";
 
 export function SubmitButton({
   children,
   pendingText = "Saving...",
+  variant = "primary",
   className = "",
 }: {
   children: React.ReactNode;
   pendingText?: string;
+  variant?: ButtonVariant;
   className?: string;
 }) {
   const { pending } = useFormStatus();
 
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className={`rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50 ${className}`}
-    >
+    <button type="submit" disabled={pending} className={`${buttonVariants[variant]} ${className}`}>
       {pending ? pendingText : children}
     </button>
   );

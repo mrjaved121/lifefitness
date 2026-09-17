@@ -11,7 +11,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-900">Edit {member.full_name}</h1>
+      <h1 className="text-2xl font-bold text-heading">Edit {member.full_name}</h1>
       <EditMemberForm member={member} />
     </div>
   );

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { buttonVariants } from "@/components/buttonStyles";
 import { formatCurrency, formatDate, todayStr } from "@/lib/format";
 
 export default async function ReportsPage({
@@ -35,70 +36,70 @@ export default async function ReportsPage({
   const exportQuery = `start=${rangeStart}&end=${rangeEnd}`;
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Reports</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-heading">Reports</h1>
+        <p className="mt-1 text-sm text-body">Understand membership, revenue and gym performance.</p>
+      </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900">Revenue</h2>
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <h2 className="text-sm font-semibold text-heading">Revenue</h2>
         <form className="mt-3 flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700">From</label>
+            <label className="block text-xs font-medium text-body">From</label>
             <input
               type="date"
               name="start"
               defaultValue={rangeStart}
-              className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+              className="mt-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading focus:border-primary focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700">To</label>
+            <label className="block text-xs font-medium text-body">To</label>
             <input
               type="date"
               name="end"
               defaultValue={rangeEnd}
-              className="mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+              className="mt-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading focus:border-primary focus:outline-none"
             />
           </div>
-          <button type="submit" className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100">
+          <button type="submit" className={buttonVariants.secondary}>
             Apply
           </button>
-          <a
-            href={`/api/export/revenue?${exportQuery}`}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-          >
+          <a href={`/api/export/revenue?${exportQuery}`} className={buttonVariants.primary}>
             Export to Excel
           </a>
         </form>
 
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-body">
           {payments.length} payment{payments.length === 1 ? "" : "s"} · Total{" "}
-          <span className="font-semibold text-gray-900">{formatCurrency(totalRevenue)}</span>
+          <span className="font-semibold text-heading">{formatCurrency(totalRevenue)}</span>
         </p>
 
-        <div className="mt-3 max-h-80 overflow-x-auto overflow-y-auto rounded-md border border-gray-100">
-          <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <thead className="bg-gray-50">
+        <div className="mt-3 max-h-80 overflow-auto rounded-lg border border-border">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-app-bg">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-gray-500">Date</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-500">Member</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-500">Method</th>
-                <th className="px-3 py-2 text-left font-medium text-gray-500">Amount</th>
+                <th className="px-3 py-2 text-left font-medium text-muted">Date</th>
+                <th className="px-3 py-2 text-left font-medium text-muted">Member</th>
+                <th className="px-3 py-2 text-left font-medium text-muted">Method</th>
+                <th className="px-3 py-2 text-left font-medium text-muted">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {payments.map((p) => (
                 <tr key={p.id}>
-                  <td className="px-3 py-2 text-gray-500">{formatDate(p.payment_date)}</td>
-                  <td className="px-3 py-2 text-gray-900">
+                  <td className="px-3 py-2 text-body">{formatDate(p.payment_date)}</td>
+                  <td className="px-3 py-2 text-heading">
                     {(p.members as unknown as { full_name: string } | null)?.full_name ?? "—"}
                   </td>
-                  <td className="px-3 py-2 capitalize text-gray-500">{p.method.replace("_", " ")}</td>
-                  <td className="px-3 py-2 font-medium text-gray-900">{formatCurrency(Number(p.amount))}</td>
+                  <td className="px-3 py-2 capitalize text-body">{p.method.replace("_", " ")}</td>
+                  <td className="px-3 py-2 font-medium text-heading">{formatCurrency(Number(p.amount))}</td>
                 </tr>
               ))}
               {payments.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan={4} className="px-3 py-6 text-center text-muted">
                     No payments in this range.
                   </td>
                 </tr>
@@ -108,28 +109,25 @@ export default async function ReportsPage({
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-5">
+      <div className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Membership roster</h2>
-          <a
-            href="/api/export/members"
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
-          >
+          <h2 className="text-sm font-semibold text-heading">Membership roster</h2>
+          <a href="/api/export/members" className={buttonVariants.secondary}>
             Export to Excel
           </a>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-4">
           <div>
-            <p className="text-xs text-gray-500">Active</p>
-            <p className="text-xl font-semibold text-gray-900">{statusCounts.active}</p>
+            <p className="text-xs text-muted">Active</p>
+            <p className="text-xl font-bold text-heading">{statusCounts.active}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Expired</p>
-            <p className="text-xl font-semibold text-gray-900">{statusCounts.expired}</p>
+            <p className="text-xs text-muted">Expired</p>
+            <p className="text-xl font-bold text-heading">{statusCounts.expired}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Frozen</p>
-            <p className="text-xl font-semibold text-gray-900">{statusCounts.frozen}</p>
+            <p className="text-xs text-muted">Frozen</p>
+            <p className="text-xl font-bold text-heading">{statusCounts.frozen}</p>
           </div>
         </div>
       </div>

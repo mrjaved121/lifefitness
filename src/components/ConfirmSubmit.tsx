@@ -1,8 +1,10 @@
 "use client";
 
+import { buttonVariants } from "./buttonStyles";
+
 export function ConfirmSubmit({
   confirmText,
-  className = "text-sm font-medium text-red-600 hover:text-red-800",
+  className = buttonVariants.destructiveText,
   children,
 }: {
   confirmText: string;

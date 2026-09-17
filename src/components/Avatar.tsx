@@ -7,7 +7,7 @@ export function Avatar({ src, name, className }: { src?: string | null; name: st
   }
 
   return (
-    <span className={`flex items-center justify-center rounded-full bg-gray-200 font-medium text-gray-600 ${className}`}>
+    <span className={`flex items-center justify-center rounded-full bg-primary/10 font-medium text-primary ${className}`}>
       {initial}
     </span>
   );

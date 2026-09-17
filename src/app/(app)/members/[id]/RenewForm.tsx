@@ -6,6 +6,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import type { Plan } from "@/types/database";
 
 const initialState: ActionState = { error: null };
+const inputClass =
+  "mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading focus:border-primary focus:outline-none";
 
 export function RenewForm({ memberId, plans }: { memberId: string; plans: Plan[] }) {
   const [state, formAction] = useActionState(renewMembership, initialState);
@@ -15,17 +17,11 @@ export function RenewForm({ memberId, plans }: { memberId: string; plans: Plan[]
   return (
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="member_id" value={memberId} />
-      {state.error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
+      {state.error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>}
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Plan</label>
-        <select
-          name="plan_id"
-          value={planId}
-          onChange={(e) => setPlanId(e.target.value)}
-          required
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-        >
+        <label className="block text-xs font-medium text-body">Plan</label>
+        <select name="plan_id" value={planId} onChange={(e) => setPlanId(e.target.value)} required className={inputClass}>
           {plans.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name} · {p.duration_days}d
@@ -36,7 +32,7 @@ export function RenewForm({ memberId, plans }: { memberId: string; plans: Plan[]
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-700">Amount charged</label>
+          <label className="block text-xs font-medium text-body">Amount charged</label>
           <input
             name="amount"
             type="number"
@@ -44,15 +40,12 @@ export function RenewForm({ memberId, plans }: { memberId: string; plans: Plan[]
             min="0"
             defaultValue={selectedPlan?.price ?? 0}
             key={selectedPlan?.id}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+            className={inputClass}
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700">Method</label>
-          <select
-            name="method"
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-          >
+          <label className="block text-xs font-medium text-body">Method</label>
+          <select name="method" className={inputClass}>
             <option value="cash">Cash</option>
             <option value="card">Card</option>
             <option value="bank_transfer">Bank transfer</option>
@@ -61,11 +54,8 @@ export function RenewForm({ memberId, plans }: { memberId: string; plans: Plan[]
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Notes</label>
-        <input
-          name="notes"
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-        />
+        <label className="block text-xs font-medium text-body">Notes</label>
+        <input name="notes" className={inputClass} />
       </div>
 
       <SubmitButton pendingText="Renewing..." className="w-full">

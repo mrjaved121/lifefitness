@@ -37,33 +37,33 @@ export default async function AuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Audit log</h1>
-        <p className="mt-1 text-sm text-gray-500">Role changes and deletions across the account, most recent first.</p>
+        <h1 className="text-2xl font-bold text-heading">Audit Log</h1>
+        <p className="mt-1 text-sm text-body">Role changes and deletions across the account, most recent first.</p>
       </div>
 
       {error ? (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error.message}</p>
+        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error.message}</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-app-bg">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">When</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Event</th>
+                <th className="px-4 py-3 text-left font-medium text-muted">When</th>
+                <th className="px-4 py-3 text-left font-medium text-muted">Event</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {(events as unknown as AuditEvent[])?.map((event) => (
-                <tr key={event.id} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                <tr key={event.id} className="hover:bg-app-bg">
+                  <td className="whitespace-nowrap px-4 py-3 text-body">
                     {new Date(event.created_at).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3 text-gray-900">{summarize(event)}</td>
+                  <td className="px-4 py-3 text-heading">{summarize(event)}</td>
                 </tr>
               ))}
               {(!events || events.length === 0) && (
                 <tr>
-                  <td colSpan={2} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={2} className="px-4 py-8 text-center text-muted">
                     No events recorded yet.
                   </td>
                 </tr>

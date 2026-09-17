@@ -6,53 +6,47 @@ import { login, type ActionState } from "@/lib/actions/auth";
 import { SubmitButton } from "@/components/SubmitButton";
 
 const initialState: ActionState = { error: null };
+const inputClass =
+  "mt-1 w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-heading focus:border-primary focus:outline-none";
 
 export function LoginForm({ registered }: { registered: boolean }) {
   const [state, formAction] = useActionState(login, initialState);
 
   return (
-    <form action={formAction} className="w-full max-w-sm space-y-4 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+    <form action={formAction} className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-surface p-8">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Sign in</h1>
-        <p className="mt-1 text-sm text-gray-500">GymDesk staff login</p>
+        <h1 className="text-2xl font-bold text-heading">Welcome back</h1>
+        <p className="mt-1 text-sm text-body">Sign in to your account</p>
       </div>
 
       {registered && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+        <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
           Account created. Check your email to confirm, then sign in.
         </p>
       )}
-      {state.error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
-      )}
+      {state.error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Email</label>
-        <input
-          name="email"
-          type="email"
-          required
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-        />
+        <label htmlFor="email" className="block text-sm font-medium text-body">
+          Email
+        </label>
+        <input id="email" name="email" type="email" required className={inputClass} />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Password</label>
-        <input
-          name="password"
-          type="password"
-          required
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
-        />
+        <label htmlFor="password" className="block text-sm font-medium text-body">
+          Password
+        </label>
+        <input id="password" name="password" type="password" required className={inputClass} />
       </div>
 
       <SubmitButton className="w-full" pendingText="Signing in...">
-        Sign in
+        Sign In
       </SubmitButton>
 
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-muted">
         No account?{" "}
-        <Link href="/signup" className="font-medium text-gray-900 hover:underline">
+        <Link href="/signup" className="font-medium text-primary hover:text-primary-hover">
           Sign up
         </Link>
       </p>

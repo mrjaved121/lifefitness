@@ -38,6 +38,24 @@ export function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// First-of-month date string, `offsetMonths` months back from the current
+// UTC month (0 = this month, 1 = last month, ...). JS's Date normalizes a
+// negative month index across year boundaries, so this stays correct in Jan.
+export function monthStart(offsetMonths = 0) {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offsetMonths, 1))
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function monthLabel(offsetMonths = 0) {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offsetMonths, 1)).toLocaleDateString("en-US", {
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function whatsAppReminderLink(phone: string, fullName: string, endDate: string) {
   const digits = phone.replace(/\D/g, "");
   const status = daysUntil(endDate) < 0 ? "expired" : "expires";
