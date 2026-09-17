@@ -33,57 +33,47 @@ export default async function DashboardPage() {
   const lastMonthStart = monthStart(1);
   const chartStart = monthStart(5);
 
-  const [
-    totalCount,
-    activeCount,
-    expiredCount,
-    newThisMonthCount,
-    newTodayCount,
-    expiringSoon,
-    expiring30,
-    thisMonthPayments,
-    lastMonthPayments,
-    chartPayments,
-    recentMembers,
-  ] = await Promise.all([
-    supabase.from("members").select("id", { count: "exact", head: true }),
-    supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "expired"),
-    supabase.from("members").select("id", { count: "exact", head: true }).gte("created_at", thisMonthStart),
-    supabase.from("members").select("id", { count: "exact", head: true }).gte("created_at", today),
+  // Two round-trips instead of many separate count queries: pull the fields
+  // needed for every KPI/list on this page once each, then aggregate in JS.
+  const [{ data: allMembers }, { data: chartPayments }] = await Promise.all([
     supabase
       .from("members")
-      .select("id, full_name, end_date, phone, email")
-      .eq("status", "active")
-      .lte("end_date", weekOut)
-      .order("end_date", { ascending: true }),
-    supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "active").lte("end_date", monthOut),
-    supabase.from("payments").select("amount").gte("payment_date", thisMonthStart).lte("payment_date", today),
-    supabase.from("payments").select("amount").gte("payment_date", lastMonthStart).lt("payment_date", thisMonthStart),
+      .select("id, full_name, phone, email, photo_url, status, end_date, created_at, plans(name)")
+      .order("created_at", { ascending: false }),
     supabase.from("payments").select("amount, payment_date").gte("payment_date", chartStart),
-    supabase
-      .from("members")
-      .select("id, full_name, photo_url, status, end_date, created_at, plans(name)")
-      .order("created_at", { ascending: false })
-      .limit(5),
   ]);
 
-  const total = totalCount.count ?? 0;
-  const active = activeCount.count ?? 0;
-  const expired = expiredCount.count ?? 0;
-  const expiringSoonCount = expiringSoon.data?.length ?? 0;
-  const expiringUrgent = expiringSoon.data?.filter((m) => daysUntil(m.end_date) <= 2).length ?? 0;
-  const newToday = newTodayCount.count ?? 0;
+  const members = allMembers || [];
+  const payments = chartPayments || [];
 
-  const thisMonthRevenue = (thisMonthPayments.data || []).reduce((sum, p) => sum + Number(p.amount), 0);
-  const lastMonthRevenue = (lastMonthPayments.data || []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const total = members.length;
+  const active = members.filter((m) => m.status === "active").length;
+  const expired = members.filter((m) => m.status === "expired").length;
+  const newThisMonth = members.filter((m) => m.created_at >= thisMonthStart).length;
+  const newToday = members.filter((m) => m.created_at >= today).length;
+  const expiring30 = members.filter((m) => m.status === "active" && m.end_date <= monthOut).length;
+
+  const expiringSoon = members
+    .filter((m) => m.status === "active" && m.end_date <= weekOut)
+    .sort((a, b) => a.end_date.localeCompare(b.end_date));
+  const expiringSoonCount = expiringSoon.length;
+  const expiringUrgent = expiringSoon.filter((m) => daysUntil(m.end_date) <= 2).length;
+
+  const recentMembers = members.slice(0, 5);
+
+  const thisMonthRevenue = payments
+    .filter((p) => p.payment_date >= thisMonthStart && p.payment_date <= today)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const lastMonthRevenue = payments
+    .filter((p) => p.payment_date >= lastMonthStart && p.payment_date < thisMonthStart)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
   const revenueChange = lastMonthRevenue > 0 ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : null;
 
   const monthlyTotals = Array.from({ length: 6 }, (_, i) => {
     const offset = 5 - i;
     const start = monthStart(offset);
     const end = offset === 0 ? addDays(today, 1) : monthStart(offset - 1);
-    const total = (chartPayments.data || [])
+    const total = payments
       .filter((p) => p.payment_date >= start && p.payment_date < end)
       .reduce((sum, p) => sum + Number(p.amount), 0);
     return { label: monthLabel(offset), total };
@@ -96,8 +86,8 @@ export default async function DashboardPage() {
     {
       label: "Total Members",
       value: total.toLocaleString(),
-      context: newThisMonthCount.count ? `+${newThisMonthCount.count} this month` : "No new members yet",
-      contextTone: newThisMonthCount.count ? "text-success" : "text-muted",
+      context: newThisMonth ? `+${newThisMonth} this month` : "No new members yet",
+      contextTone: newThisMonth ? "text-success" : "text-muted",
     },
     {
       label: "Active Members",
@@ -184,7 +174,7 @@ export default async function DashboardPage() {
             {[
               { label: "Active", value: active },
               { label: "Expiring < 7 days", value: expiringSoonCount },
-              { label: "Expiring < 30 days", value: expiring30.count ?? 0 },
+              { label: "Expiring < 30 days", value: expiring30 },
               { label: "Expired", value: expired },
             ].map((row) => (
               <div key={row.label} className="flex items-center justify-between text-sm">
@@ -233,7 +223,7 @@ export default async function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {recentMembers.data?.map((m) => (
+              {recentMembers.map((m) => (
                 <tr key={m.id}>
                   <td className="py-2.5 pr-3">
                     <Link href={`/members/${m.id}`} className="flex items-center gap-2.5 font-medium text-heading hover:text-primary">
@@ -245,10 +235,10 @@ export default async function DashboardPage() {
                   <td className="px-3 py-2.5">
                     <StatusBadge status={m.status} endDate={m.end_date} />
                   </td>
-                  <td className="px-3 py-2.5 text-body">{formatDate(m.created_at.slice(0, 10))}</td>
+                  <td className="px-3 py-2.5 text-body">{m.created_at ? formatDate(m.created_at.slice(0, 10)) : "—"}</td>
                 </tr>
               ))}
-              {(!recentMembers.data || recentMembers.data.length === 0) && (
+              {recentMembers.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-6 text-center text-muted">
                     No members yet.
@@ -260,11 +250,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {expiringSoon.data && expiringSoon.data.length > 0 && (
+      {expiringSoon.length > 0 && (
         <div className="rounded-xl border border-border bg-surface p-5">
           <h2 className="text-sm font-semibold text-heading">Renewal reminders (next 7 days)</h2>
           <ul className="mt-3 divide-y divide-border">
-            {expiringSoon.data.map((m) => {
+            {expiringSoon.map((m) => {
               const days = daysUntil(m.end_date);
               return (
                 <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
