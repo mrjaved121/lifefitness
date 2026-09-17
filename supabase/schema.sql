@@ -15,6 +15,7 @@ create table if not exists profiles (
 create table if not exists plans (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  description text,
   duration_days int not null check (duration_days > 0),
   price numeric not null check (price >= 0),
   is_active boolean default true,
@@ -44,6 +45,16 @@ create table if not exists payments (
   method text check (method in ('cash', 'card', 'bank_transfer')) not null default 'cash',
   notes text,
   recorded_by uuid references profiles(id) on delete set null,
+  created_at timestamptz default now()
+);
+
+create table if not exists audit_log (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references profiles(id) on delete set null,
+  action text not null,
+  target_table text not null,
+  target_id uuid,
+  details jsonb,
   created_at timestamptz default now()
 );
 
@@ -234,13 +245,98 @@ $$;
 grant execute on function public.list_staff() to authenticated;
 
 -- ============================================================
--- 8. ROW LEVEL SECURITY
+-- 8. AUDIT LOG TRIGGERS
+-- DB-level (not app-level) so every role change and deletion is
+-- captured regardless of which code path made it. SECURITY DEFINER
+-- bypasses audit_log's own RLS (staff never get direct insert rights
+-- on it); auth.uid() still resolves to the actual acting user because
+-- it reads the request's JWT claim, not the function owner.
+-- ============================================================
+
+create or replace function public.log_role_change()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.role is distinct from old.role then
+    insert into audit_log (actor_id, action, target_table, target_id, details)
+    values (auth.uid(), 'role_change', 'profiles', new.id,
+            jsonb_build_object('from', old.role, 'to', new.role, 'target_name', new.full_name));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_role_change on profiles;
+create trigger on_profile_role_change
+  after update on profiles
+  for each row execute function public.log_role_change();
+
+create or replace function public.log_delete_event()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into audit_log (actor_id, action, target_table, target_id, details)
+  values (auth.uid(), 'delete', TG_TABLE_NAME, old.id, to_jsonb(old));
+  return old;
+end;
+$$;
+
+drop trigger if exists on_member_delete on members;
+create trigger on_member_delete
+  before delete on members
+  for each row execute function public.log_delete_event();
+
+drop trigger if exists on_payment_delete on payments;
+create trigger on_payment_delete
+  before delete on payments
+  for each row execute function public.log_delete_event();
+
+drop trigger if exists on_plan_delete on plans;
+create trigger on_plan_delete
+  before delete on plans
+  for each row execute function public.log_delete_event();
+
+-- ============================================================
+-- 9. MEMBER PHOTOS STORAGE BUCKET
+-- Called from uploadMemberPhoto() in src/lib/actions/members.ts.
+-- Public bucket (photos aren't sensitive) so <img> tags can load
+-- them directly; storage.objects policies still gate who can
+-- upload/replace/delete.
+-- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('member-photos', 'member-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "member_photos_select" on storage.objects;
+create policy "member_photos_select" on storage.objects
+  for select using (bucket_id = 'member-photos');
+
+drop policy if exists "member_photos_insert_staff" on storage.objects;
+create policy "member_photos_insert_staff" on storage.objects
+  for insert with check (bucket_id = 'member-photos' and is_staff());
+
+drop policy if exists "member_photos_update_staff" on storage.objects;
+create policy "member_photos_update_staff" on storage.objects
+  for update using (bucket_id = 'member-photos' and is_staff());
+
+drop policy if exists "member_photos_delete_staff" on storage.objects;
+create policy "member_photos_delete_staff" on storage.objects
+  for delete using (bucket_id = 'member-photos' and is_staff());
+
+-- ============================================================
+-- 10. ROW LEVEL SECURITY
 -- ============================================================
 
 alter table profiles enable row level security;
 alter table plans enable row level security;
 alter table members enable row level security;
 alter table payments enable row level security;
+alter table audit_log enable row level security;
 
 -- PROFILES: everyone can see/update their own row; owners can see all
 -- rows, but only super admins can change another account's role (that's
@@ -296,3 +392,9 @@ create policy "payments_update_owner" on payments
 
 create policy "payments_delete_owner" on payments
   for delete using (is_owner());
+
+-- AUDIT LOG: super admins only. Rows are written exclusively by the
+-- SECURITY DEFINER triggers above, so no insert/update/delete policy
+-- is needed for any role.
+create policy "audit_log_select_super_admin" on audit_log
+  for select using (is_super_admin());

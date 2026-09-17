@@ -9,6 +9,7 @@ export async function createPlan(_prevState: ActionState, formData: FormData): P
   const supabase = await createClient();
 
   const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim() || null;
   const duration_days = Number(formData.get("duration_days") || 0);
   const price = Number(formData.get("price") || 0);
 
@@ -16,7 +17,7 @@ export async function createPlan(_prevState: ActionState, formData: FormData): P
     return { error: "Enter a valid name, duration, and price." };
   }
 
-  const { error } = await supabase.from("plans").insert({ name, duration_days, price });
+  const { error } = await supabase.from("plans").insert({ name, description, duration_days, price });
   if (error) return { error: error.message };
 
   revalidatePath("/plans");
@@ -27,6 +28,7 @@ export async function updatePlan(id: string, _prevState: ActionState, formData: 
   const supabase = await createClient();
 
   const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim() || null;
   const duration_days = Number(formData.get("duration_days") || 0);
   const price = Number(formData.get("price") || 0);
 
@@ -34,7 +36,10 @@ export async function updatePlan(id: string, _prevState: ActionState, formData: 
     return { error: "Enter a valid name, duration, and price." };
   }
 
-  const { error } = await supabase.from("plans").update({ name, duration_days, price }).eq("id", id);
+  const { error } = await supabase
+    .from("plans")
+    .update({ name, description, duration_days, price })
+    .eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath("/plans");

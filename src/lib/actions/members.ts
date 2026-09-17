@@ -7,6 +7,18 @@ import { addDays } from "@/lib/format";
 
 export type ActionState = { error: string | null };
 
+async function uploadMemberPhoto(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  photo: File
+): Promise<{ url: string | null; error: string | null }> {
+  const ext = photo.name.split(".").pop() || "jpg";
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("member-photos").upload(path, photo);
+  if (error) return { url: null, error: error.message };
+  const { data } = supabase.storage.from("member-photos").getPublicUrl(path);
+  return { url: data.publicUrl, error: null };
+}
+
 export async function createMember(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const supabase = await createClient();
   const {
@@ -19,6 +31,7 @@ export async function createMember(_prevState: ActionState, formData: FormData):
   const email = String(formData.get("email") || "").trim() || null;
   const plan_id = String(formData.get("plan_id") || "") || null;
   const start_date = String(formData.get("start_date") || "");
+  const photo = formData.get("photo") as File | null;
 
   if (!full_name || !start_date || !plan_id) {
     return { error: "Name, plan, and start date are required." };
@@ -32,6 +45,13 @@ export async function createMember(_prevState: ActionState, formData: FormData):
 
   if (planError || !plan) return { error: "Selected plan was not found." };
 
+  let photo_url: string | null = null;
+  if (photo && photo.size > 0) {
+    const uploaded = await uploadMemberPhoto(supabase, photo);
+    if (uploaded.error) return { error: uploaded.error };
+    photo_url = uploaded.url;
+  }
+
   const end_date = addDays(start_date, plan.duration_days);
 
   const { data, error } = await supabase
@@ -40,6 +60,7 @@ export async function createMember(_prevState: ActionState, formData: FormData):
       full_name,
       phone,
       email,
+      photo_url,
       plan_id,
       start_date,
       end_date,
@@ -62,13 +83,19 @@ export async function updateMember(id: string, _prevState: ActionState, formData
   const phone = String(formData.get("phone") || "").trim() || null;
   const email = String(formData.get("email") || "").trim() || null;
   const status = String(formData.get("status") || "active");
+  const photo = formData.get("photo") as File | null;
 
   if (!full_name) return { error: "Name is required." };
 
-  const { error } = await supabase
-    .from("members")
-    .update({ full_name, phone, email, status })
-    .eq("id", id);
+  const update: Record<string, unknown> = { full_name, phone, email, status };
+
+  if (photo && photo.size > 0) {
+    const uploaded = await uploadMemberPhoto(supabase, photo);
+    if (uploaded.error) return { error: uploaded.error };
+    update.photo_url = uploaded.url;
+  }
+
+  const { error } = await supabase.from("members").update(update).eq("id", id);
 
   if (error) return { error: error.message };
 

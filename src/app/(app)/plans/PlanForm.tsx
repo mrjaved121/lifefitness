@@ -37,6 +37,15 @@ export function PlanForm({ plan, onDone }: { plan?: Plan; onDone?: () => void })
         />
       </div>
       <div>
+        <label className="block text-xs font-medium text-gray-700">Description (optional)</label>
+        <input
+          name="description"
+          defaultValue={plan?.description ?? ""}
+          placeholder="e.g. Includes cardio zone access"
+          className="mt-1 w-56 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+        />
+      </div>
+      <div>
         <label className="block text-xs font-medium text-gray-700">Duration (days)</label>
         <input
           name="duration_days"

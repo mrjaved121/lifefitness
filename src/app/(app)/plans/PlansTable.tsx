@@ -11,7 +11,7 @@ export function PlansTable({ plans, isOwner }: { plans: Plan[]; isOwner: boolean
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">
           <tr>
@@ -32,7 +32,10 @@ export function PlansTable({ plans, isOwner }: { plans: Plan[]; isOwner: boolean
               </tr>
             ) : (
               <tr key={plan.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{plan.name}</td>
+                <td className="px-4 py-3">
+                  <p className="font-medium text-gray-900">{plan.name}</p>
+                  {plan.description && <p className="text-xs text-gray-500">{plan.description}</p>}
+                </td>
                 <td className="px-4 py-3 text-gray-500">{plan.duration_days} days</td>
                 <td className="px-4 py-3 text-gray-500">{formatCurrency(Number(plan.price))}</td>
                 <td className="px-4 py-3 text-gray-500">{plan.is_active ? "Active" : "Inactive"}</td>

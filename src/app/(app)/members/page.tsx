@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Avatar } from "@/components/Avatar";
 import { formatDate } from "@/lib/format";
 import type { MemberStatus } from "@/types/database";
 
@@ -14,7 +15,7 @@ export default async function MembersPage({
 
   let query = supabase
     .from("members")
-    .select("id, full_name, phone, email, end_date, status, plans(name)")
+    .select("id, full_name, phone, email, photo_url, end_date, status, plans(name)")
     .order("full_name", { ascending: true });
 
   if (q) {
@@ -66,7 +67,7 @@ export default async function MembersPage({
 
       {error && <p className="text-sm text-red-600">{error.message}</p>}
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
@@ -81,7 +82,8 @@ export default async function MembersPage({
             {members?.map((m) => (
               <tr key={m.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <Link href={`/members/${m.id}`} className="font-medium text-gray-900 hover:underline">
+                  <Link href={`/members/${m.id}`} className="flex items-center gap-3 font-medium text-gray-900 hover:underline">
+                    <Avatar src={m.photo_url} name={m.full_name} className="h-8 w-8 shrink-0 text-xs" />
                     {m.full_name}
                   </Link>
                 </td>

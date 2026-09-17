@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updateMember, type ActionState } from "@/lib/actions/members";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Avatar } from "@/components/Avatar";
 import type { Member } from "@/types/database";
 
 const initialState: ActionState = { error: null };
@@ -14,6 +15,19 @@ export function EditMemberForm({ member }: { member: Member }) {
   return (
     <form action={formAction} className="max-w-lg space-y-4 rounded-lg border border-gray-200 bg-white p-6">
       {state.error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Photo</label>
+        <div className="mt-1 flex items-center gap-3">
+          <Avatar src={member.photo_url} name={member.full_name} className="h-12 w-12 shrink-0 text-sm" />
+          <input
+            name="photo"
+            type="file"
+            accept="image/*"
+            className="flex-1 text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
+          />
+        </div>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700">Full name</label>

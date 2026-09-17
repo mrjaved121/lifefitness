@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isOwner } from "@/lib/auth";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { Avatar } from "@/components/Avatar";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { deleteMember, toggleFreeze } from "@/lib/actions/members";
 import { deletePayment } from "@/lib/actions/payments";
@@ -34,9 +35,12 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{member.full_name}</h1>
-          <p className="text-sm text-gray-500">{plan?.name ?? "No plan"}</p>
+        <div className="flex items-center gap-4">
+          <Avatar src={member.photo_url} name={member.full_name} className="h-14 w-14 shrink-0 text-lg" />
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">{member.full_name}</h1>
+            <p className="text-sm text-gray-500">{plan?.name ?? "No plan"}</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={member.status} />
@@ -84,7 +88,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-gray-900">Payment history</h2>
-          <div className="mt-3 overflow-hidden rounded-md border border-gray-100">
+          <div className="mt-3 overflow-x-auto rounded-md border border-gray-100">
             <table className="min-w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50">
                 <tr>

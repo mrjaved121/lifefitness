@@ -12,6 +12,7 @@ export interface Profile {
 export interface Plan {
   id: string;
   name: string;
+  description: string | null;
   duration_days: number;
   price: number;
   is_active: boolean;

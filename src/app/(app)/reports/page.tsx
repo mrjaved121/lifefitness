@@ -75,7 +75,7 @@ export default async function ReportsPage({
           <span className="font-semibold text-gray-900">{formatCurrency(totalRevenue)}</span>
         </p>
 
-        <div className="mt-3 max-h-80 overflow-y-auto rounded-md border border-gray-100">
+        <div className="mt-3 max-h-80 overflow-x-auto overflow-y-auto rounded-md border border-gray-100">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
             <thead className="bg-gray-50">
               <tr>
