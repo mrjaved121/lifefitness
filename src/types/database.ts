@@ -21,9 +21,12 @@ export interface Plan {
 
 export interface Member {
   id: string;
+  member_no: number | null;
   full_name: string;
   phone: string | null;
   email: string | null;
+  address: string | null;
+  notes: string | null;
   photo_url: string | null;
   plan_id: string | null;
   start_date: string;

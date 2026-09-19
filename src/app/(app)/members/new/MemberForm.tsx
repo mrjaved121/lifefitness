@@ -50,6 +50,16 @@ export function MemberForm({ plans }: { plans: Plan[] }) {
               <input name="email" type="email" className={inputClass} />
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-body">Address</label>
+            <input name="address" className={inputClass} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-body">Notes (optional)</label>
+            <textarea name="notes" rows={2} className={inputClass} />
+          </div>
         </div>
       </div>
 

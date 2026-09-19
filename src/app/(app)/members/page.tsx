@@ -22,14 +22,24 @@ export default async function MembersPage({
 
   let query = supabase
     .from("members")
-    .select("id, full_name, phone, email, photo_url, end_date, status, plans(name)")
+    .select("id, member_no, full_name, phone, email, address, photo_url, end_date, status, plans(name)")
     .order("full_name", { ascending: true });
 
   if (q) {
     // PostgREST's `.or()` treats `,()"` as structural, so quote the value
     // (escaping embedded quotes) to search safely for terms like "Smith, Jr".
     const term = `%${q}%`.replace(/"/g, '\\"');
-    query = query.or(`full_name.ilike."${term}",phone.ilike."${term}",email.ilike."${term}"`);
+    const filters = [
+      `full_name.ilike."${term}"`,
+      `phone.ilike."${term}"`,
+      `email.ilike."${term}"`,
+      `address.ilike."${term}"`,
+    ];
+    // Register numbers are short; a longer digit string is a phone number and
+    // would overflow the integer column.
+    const digits = q.trim();
+    if (/^\d{1,6}$/.test(digits)) filters.push(`member_no.eq.${digits}`);
+    query = query.or(filters.join(","));
   }
   if (status === "expiring") {
     query = query.eq("status", "active").lte("end_date", addDays(todayStr(), 7));
@@ -122,9 +132,14 @@ export default async function MembersPage({
                 {members?.map((m) => (
                   <tr key={m.id} className="hover:bg-app-bg">
                     <td className="px-4 py-3">
-                      <Link href={`/members/${m.id}`} className="flex items-center gap-3 font-medium text-heading hover:text-primary">
+                      <Link href={`/members/${m.id}`} className="flex items-center gap-3 hover:text-primary">
                         <Avatar src={m.photo_url} name={m.full_name} className="h-9 w-9 shrink-0 text-xs" />
-                        {m.full_name}
+                        <span>
+                          <span className="block font-medium text-heading">{m.full_name}</span>
+                          <span className="block text-xs text-muted">
+                            {[m.member_no != null && `#${m.member_no}`, m.address].filter(Boolean).join(" · ") || " "}
+                          </span>
+                        </span>
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-body">{m.phone || m.email || "—"}</td>
@@ -151,7 +166,11 @@ export default async function MembersPage({
                   <Avatar src={m.photo_url} name={m.full_name} className="h-10 w-10 shrink-0 text-sm" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-heading">{m.full_name}</p>
-                    <p className="truncate text-sm text-muted">{(m.plans as unknown as { name: string } | null)?.name ?? "No plan"}</p>
+                    <p className="truncate text-sm text-muted">
+                      {[(m.plans as unknown as { name: string } | null)?.name ?? "No plan", m.member_no != null && `#${m.member_no}`]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   </div>
                   <StatusBadge status={m.status} endDate={m.end_date} />
                 </div>

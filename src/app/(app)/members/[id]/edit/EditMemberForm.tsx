@@ -48,6 +48,16 @@ export function EditMemberForm({ member }: { member: Member }) {
       </div>
 
       <div>
+        <label className="block text-sm font-medium text-body">Address</label>
+        <input name="address" defaultValue={member.address ?? ""} className={inputClass} />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-body">Notes</label>
+        <textarea name="notes" rows={3} defaultValue={member.notes ?? ""} className={inputClass} />
+      </div>
+
+      <div>
         <label className="block text-sm font-medium text-body">Status</label>
         <select name="status" defaultValue={member.status} className={inputClass}>
           <option value="active">Active</option>

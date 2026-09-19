@@ -62,6 +62,10 @@ export function MemberTabs({
                 <dt className="text-muted">Email</dt>
                 <dd className="font-medium text-heading">{member.email || "—"}</dd>
               </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">Address</dt>
+                <dd className="text-right font-medium text-heading">{member.address || "—"}</dd>
+              </div>
             </dl>
           </div>
           <div className="rounded-xl border border-border bg-surface p-5">
@@ -81,6 +85,12 @@ export function MemberTabs({
               </div>
             </dl>
           </div>
+          {member.notes && (
+            <div className="rounded-xl border border-border bg-surface p-5 md:col-span-2">
+              <h3 className="text-sm font-semibold text-heading">Notes</h3>
+              <p className="mt-3 whitespace-pre-line text-sm text-body">{member.notes}</p>
+            </div>
+          )}
         </div>
       )}
 

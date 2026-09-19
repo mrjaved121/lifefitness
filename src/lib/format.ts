@@ -57,7 +57,8 @@ export function monthLabel(offsetMonths = 0) {
 }
 
 export function whatsAppReminderLink(phone: string, fullName: string, endDate: string) {
-  const digits = phone.replace(/\D/g, "");
+  // wa.me wants the international form; local Pakistani numbers (03XX...) start with 0.
+  const digits = phone.replace(/\D/g, "").replace(/^0/, "92");
   const status = daysUntil(endDate) < 0 ? "expired" : "expires";
   const message = `Hi ${fullName}, this is a reminder from GymDesk — your membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.`;
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;

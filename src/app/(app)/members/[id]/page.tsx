@@ -48,7 +48,10 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
           <Avatar src={member.photo_url} name={member.full_name} className="h-14 w-14 shrink-0 text-lg" />
           <div>
             <h1 className="text-2xl font-bold text-heading">{member.full_name}</h1>
-            <p className="text-sm text-body">{plan?.name ?? "No plan"}</p>
+            <p className="text-sm text-body">
+              {plan?.name ?? "No plan"}
+              {member.member_no != null && ` · Member #${member.member_no}`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-4">

@@ -30,6 +30,8 @@ export async function createMember(_prevState: ActionState, formData: FormData):
   const full_name = String(formData.get("full_name") || "").trim();
   const phone = String(formData.get("phone") || "").trim() || null;
   const email = String(formData.get("email") || "").trim() || null;
+  const address = String(formData.get("address") || "").trim() || null;
+  const notes = String(formData.get("notes") || "").trim() || null;
   const plan_id = String(formData.get("plan_id") || "") || null;
   const start_date = String(formData.get("start_date") || "");
   const photo = formData.get("photo") as File | null;
@@ -61,6 +63,8 @@ export async function createMember(_prevState: ActionState, formData: FormData):
       full_name,
       phone,
       email,
+      address,
+      notes,
       photo_url,
       plan_id,
       start_date,
@@ -84,12 +88,14 @@ export async function updateMember(id: string, _prevState: ActionState, formData
   const full_name = String(formData.get("full_name") || "").trim();
   const phone = String(formData.get("phone") || "").trim() || null;
   const email = String(formData.get("email") || "").trim() || null;
+  const address = String(formData.get("address") || "").trim() || null;
+  const notes = String(formData.get("notes") || "").trim() || null;
   const status = String(formData.get("status") || "active");
   const photo = formData.get("photo") as File | null;
 
   if (!full_name) return { error: "Name is required." };
 
-  const update: Record<string, unknown> = { full_name, phone, email, status };
+  const update: Record<string, unknown> = { full_name, phone, email, address, notes, status };
 
   if (photo && photo.size > 0) {
     const uploaded = await uploadMemberPhoto(supabase, photo);

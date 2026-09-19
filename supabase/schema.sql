@@ -22,11 +22,19 @@ create table if not exists plans (
   created_at timestamptz default now()
 );
 
+-- Register numbers 301-852 were imported from the gym's spreadsheet; new
+-- members continue from 853.
+create sequence if not exists members_member_no_seq start 853;
+grant usage, select on sequence members_member_no_seq to authenticated;
+
 create table if not exists members (
   id uuid primary key default gen_random_uuid(),
+  member_no int default nextval('members_member_no_seq'),
   full_name text not null,
   phone text,
   email text,
+  address text,
+  notes text,
   photo_url text,
   plan_id uuid references plans(id) on delete set null,
   start_date date not null,
@@ -64,6 +72,7 @@ create table if not exists audit_log (
 
 create index if not exists idx_members_end_date on members(end_date);
 create index if not exists idx_members_status on members(status);
+create index if not exists idx_members_member_no on members(member_no);
 create index if not exists idx_payments_member_id on payments(member_id);
 create index if not exists idx_payments_payment_date on payments(payment_date);
 
