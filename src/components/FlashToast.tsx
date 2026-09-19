@@ -44,7 +44,7 @@ export function FlashToast() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed right-4 bottom-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm"
+      className="fixed right-4 bottom-20 z-50 flex md:bottom-4 max-w-sm items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm"
     >
       <span className={`h-2 w-2 shrink-0 rounded-full ${isError ? "bg-danger" : "bg-success"}`} />
       <p className="text-sm text-heading">{flash.message}</p>

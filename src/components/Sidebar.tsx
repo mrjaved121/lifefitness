@@ -36,6 +36,10 @@ export function Sidebar({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  // The four everyday destinations live in the first section; anything else
+  // (Staff, Audit Log, Sign out) is reached through "More", which opens the drawer.
+  const primaryLinks = sections[0]?.links.slice(0, 4) ?? [];
 
   return (
     <>
@@ -78,12 +82,13 @@ export function Sidebar({
               </p>
               <div className="flex flex-col gap-0.5">
                 {section.links.map((link) => {
-                  const active = pathname === link.href || pathname.startsWith(link.href + "/");
+                  const active = isActive(link.href);
                   const Icon = ICONS[link.icon];
                   return (
                     <Link
                       key={link.href}
                       href={link.href}
+                      aria-current={active ? "page" : undefined}
                       onClick={() => setOpen(false)}
                       className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                         active ? "bg-primary/10 text-primary" : "text-body hover:bg-app-bg hover:text-heading"
@@ -118,6 +123,41 @@ export function Sidebar({
           </form>
         </div>
       </aside>
+
+      <nav
+        aria-label="Primary"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-flow-col auto-cols-fr border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        {primaryLinks.map((link) => {
+          const active = isActive(link.href);
+          const Icon = ICONS[link.icon];
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+                active ? "text-primary" : "text-muted hover:text-heading"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              {link.label}
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted transition-colors hover:text-heading"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.8" />
+            <circle cx="12" cy="12" r="1.8" />
+            <circle cx="19" cy="12" r="1.8" />
+          </svg>
+          More
+        </button>
+      </nav>
     </>
   );
 }
