@@ -52,7 +52,10 @@ export async function updatePlan(id: string, _prevState: ActionState, formData: 
 export async function togglePlanActive(id: string, is_active: boolean) {
   const supabase = await createClient();
   const { error } = await supabase.from("plans").update({ is_active }).eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await setFlash(`Couldn't update plan: ${error.message}`, "error");
+    return;
+  }
   await setFlash(is_active ? "Plan activated" : "Plan deactivated");
   revalidatePath("/plans");
 }
@@ -60,7 +63,10 @@ export async function togglePlanActive(id: string, is_active: boolean) {
 export async function deletePlan(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("plans").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await setFlash(`Couldn't delete plan: ${error.message}`, "error");
+    return;
+  }
   await setFlash("Plan deleted");
   revalidatePath("/plans");
 }

@@ -42,7 +42,10 @@ export async function addPayment(memberId: string, _prevState: ActionState, form
 export async function deletePayment(id: string, memberId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("payments").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await setFlash(`Couldn't delete payment: ${error.message}`, "error");
+    return;
+  }
   await setFlash("Payment deleted");
   revalidatePath(`/members/${memberId}`);
   revalidatePath("/reports");

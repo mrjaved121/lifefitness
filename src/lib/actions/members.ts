@@ -113,7 +113,10 @@ export async function toggleFreeze(id: string, freeze: boolean) {
     .from("members")
     .update({ status: freeze ? "frozen" : "active" })
     .eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await setFlash(`Couldn't update membership: ${error.message}`, "error");
+    return;
+  }
   await setFlash(freeze ? "Membership frozen" : "Membership unfrozen");
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
@@ -122,7 +125,10 @@ export async function toggleFreeze(id: string, freeze: boolean) {
 export async function deleteMember(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("members").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await setFlash(`Couldn't delete member: ${error.message}`, "error");
+    return;
+  }
   await setFlash("Member deleted");
   revalidatePath("/members");
   redirect("/members");
