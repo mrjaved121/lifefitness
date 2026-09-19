@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { LinkButton } from "@/components/LinkButton";
@@ -129,14 +130,25 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-[28px] font-bold text-heading">
-            {greeting()}, {firstName}
-          </h1>
-          <p className="mt-1 text-sm text-body">Here&apos;s what&apos;s happening at your gym today.</p>
+      <div className="relative overflow-hidden rounded-xl">
+        <Image
+          src="/images/gym-dashboard.jpg"
+          alt=""
+          width={1600}
+          height={400}
+          priority
+          className="h-40 w-full object-cover sm:h-48"
+        />
+        <div className="absolute inset-0 bg-heading/70" />
+        <div className="absolute inset-0 flex flex-wrap items-center justify-between gap-3 p-6">
+          <div>
+            <h1 className="text-[28px] font-bold text-white">
+              {greeting()}, {firstName}
+            </h1>
+            <p className="mt-1 text-sm text-white/80">Here&apos;s what&apos;s happening at your gym today.</p>
+          </div>
+          <LinkButton href="/members/new">+ Add Member</LinkButton>
         </div>
-        <LinkButton href="/members/new">+ Add Member</LinkButton>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
