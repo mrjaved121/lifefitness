@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { setFlash } from "@/lib/flash";
 
 export type ActionState = { error: string | null };
 
@@ -32,6 +33,7 @@ export async function addPayment(memberId: string, _prevState: ActionState, form
 
   if (error) return { error: error.message };
 
+  await setFlash("Payment recorded");
   revalidatePath(`/members/${memberId}`);
   revalidatePath("/reports");
   return { error: null };
@@ -41,6 +43,7 @@ export async function deletePayment(id: string, memberId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("payments").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await setFlash("Payment deleted");
   revalidatePath(`/members/${memberId}`);
   revalidatePath("/reports");
 }

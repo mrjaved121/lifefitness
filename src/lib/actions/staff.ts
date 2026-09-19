@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { setFlash } from "@/lib/flash";
 
 export async function updateStaffRole(userId: string, role: string) {
   const supabase = await createClient();
@@ -14,5 +15,6 @@ export async function updateStaffRole(userId: string, role: string) {
   const { error } = await supabase.from("profiles").update({ role }).eq("id", userId);
   if (error) throw new Error(error.message);
 
+  await setFlash("Role updated");
   revalidatePath("/staff");
 }

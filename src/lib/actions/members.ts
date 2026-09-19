@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { addDays } from "@/lib/format";
+import { setFlash } from "@/lib/flash";
 
 export type ActionState = { error: string | null };
 
@@ -72,6 +73,7 @@ export async function createMember(_prevState: ActionState, formData: FormData):
 
   if (error) return { error: error.message };
 
+  await setFlash("Member added successfully");
   revalidatePath("/members");
   redirect(`/members/${data.id}`);
 }
@@ -99,6 +101,7 @@ export async function updateMember(id: string, _prevState: ActionState, formData
 
   if (error) return { error: error.message };
 
+  await setFlash("Changes saved");
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
   redirect(`/members/${id}`);
@@ -111,6 +114,7 @@ export async function toggleFreeze(id: string, freeze: boolean) {
     .update({ status: freeze ? "frozen" : "active" })
     .eq("id", id);
   if (error) throw new Error(error.message);
+  await setFlash(freeze ? "Membership frozen" : "Membership unfrozen");
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
 }
@@ -119,6 +123,7 @@ export async function deleteMember(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("members").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await setFlash("Member deleted");
   revalidatePath("/members");
   redirect("/members");
 }
@@ -149,6 +154,7 @@ export async function renewMembership(_prevState: ActionState, formData: FormDat
 
   if (error) return { error: error.message };
 
+  await setFlash("Membership renewed");
   revalidatePath("/members");
   revalidatePath(`/members/${member_id}`);
   redirect(`/members/${member_id}`);

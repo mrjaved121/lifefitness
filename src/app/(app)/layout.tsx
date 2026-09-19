@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile, isSuperAdmin } from "@/lib/auth";
 import { Sidebar, type NavSection } from "@/components/Sidebar";
+import { FlashToast } from "@/components/FlashToast";
 
 const MAIN_LINKS: NavSection["links"] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen flex-1 flex-col md:flex-row">
       <Sidebar sections={sections} fullName={profile.full_name || ""} role={profile.role} />
       <main className="flex-1 p-4 md:p-8">{children}</main>
+      <FlashToast />
     </div>
   );
 }
