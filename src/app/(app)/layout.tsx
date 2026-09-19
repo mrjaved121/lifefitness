@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile, isSuperAdmin } from "@/lib/auth";
 import { Sidebar, type NavSection } from "@/components/Sidebar";
-import { GridIcon, UsersIcon, TagIcon, ChartIcon, ShieldIcon, ClipboardListIcon } from "@/components/icons";
 
-const MAIN_LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: GridIcon },
-  { href: "/members", label: "Members", icon: UsersIcon },
-  { href: "/plans", label: "Plans", icon: TagIcon },
-  { href: "/reports", label: "Reports", icon: ChartIcon },
+const MAIN_LINKS: NavSection["links"] = [
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/members", label: "Members", icon: "members" },
+  { href: "/plans", label: "Plans", icon: "plans" },
+  { href: "/reports", label: "Reports", icon: "reports" },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,8 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sections.push({
       heading: "Management",
       links: [
-        { href: "/staff", label: "Staff", icon: ShieldIcon },
-        { href: "/audit", label: "Audit Log", icon: ClipboardListIcon },
+        { href: "/staff", label: "Staff", icon: "staff" },
+        { href: "/audit", label: "Audit Log", icon: "audit" },
       ],
     });
   }

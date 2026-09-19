@@ -5,10 +5,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
 import { BarbellIcon } from "@/components/BarbellIcon";
-import { LogoutIcon } from "@/components/icons";
+import { GridIcon, UsersIcon, TagIcon, ChartIcon, ShieldIcon, ClipboardListIcon, LogoutIcon } from "@/components/icons";
 import { Avatar } from "@/components/Avatar";
 
-export type NavLink = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+// Server Components can't pass component/function references as props to a
+// Client Component (RSC only serializes plain data across that boundary), so
+// the parent layout sends a string key and this file - already a client
+// component free to import whatever it likes - resolves it to the real icon.
+const ICONS = {
+  dashboard: GridIcon,
+  members: UsersIcon,
+  plans: TagIcon,
+  reports: ChartIcon,
+  staff: ShieldIcon,
+  audit: ClipboardListIcon,
+} as const;
+
+export type IconKey = keyof typeof ICONS;
+export type NavLink = { href: string; label: string; icon: IconKey };
 export type NavSection = { heading: string; links: NavLink[] };
 
 export function Sidebar({
@@ -65,7 +79,7 @@ export function Sidebar({
               <div className="flex flex-col gap-0.5">
                 {section.links.map((link) => {
                   const active = pathname === link.href || pathname.startsWith(link.href + "/");
-                  const Icon = link.icon;
+                  const Icon = ICONS[link.icon];
                   return (
                     <Link
                       key={link.href}
