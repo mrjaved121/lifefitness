@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { getCurrentProfile } from "@/lib/auth";
 import { LinkButton } from "@/components/LinkButton";
 import { Avatar } from "@/components/Avatar";
@@ -34,14 +35,27 @@ export default async function DashboardPage() {
   const lastMonthStart = monthStart(1);
   const chartStart = monthStart(5);
 
-  // Two round-trips instead of many separate count queries: pull the fields
+  // Two queries instead of many separate count queries: pull the fields
   // needed for every KPI/list on this page once each, then aggregate in JS.
+  // fetchAll pages through the results - a plain select() is capped at 1000 rows.
   const [{ data: allMembers }, { data: chartPayments }] = await Promise.all([
-    supabase
-      .from("members")
-      .select("id, full_name, phone, email, photo_url, status, end_date, created_at, plans(name)")
-      .order("created_at", { ascending: false }),
-    supabase.from("payments").select("amount, payment_date").gte("payment_date", chartStart),
+    fetchAll((from, to) =>
+      supabase
+        .from("members")
+        .select("id, full_name, phone, email, photo_url, status, end_date, created_at, plans(name)")
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to)
+    ),
+    fetchAll((from, to) =>
+      supabase
+        .from("payments")
+        .select("amount, payment_date")
+        .gte("payment_date", chartStart)
+        .order("payment_date")
+        .order("id")
+        .range(from, to)
+    ),
   ]);
 
   const members = allMembers || [];

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { todayStr } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
@@ -18,14 +19,19 @@ export async function GET(request: NextRequest) {
   const start = isDate(startParam) ? startParam : today.slice(0, 8) + "01";
   const end = isDate(endParam) ? endParam : today;
 
-  const { data: payments, error } = await supabase
-    .from("payments")
-    .select("payment_date, amount, method, notes, members(full_name)")
-    .gte("payment_date", start)
-    .lte("payment_date", end)
-    .order("payment_date", { ascending: true });
+  const { data: payments, error } = await fetchAll((from, to) =>
+    supabase
+      .from("payments")
+      .select("payment_date, amount, method, notes, members(full_name)")
+      .gte("payment_date", start)
+      .lte("payment_date", end)
+      .order("payment_date", { ascending: true })
+      .order("id")
+      .range(from, to)
+  );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Fail loudly rather than hand back a spreadsheet that's missing rows.
+  if (error) return NextResponse.json({ error }, { status: 500 });
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Revenue");

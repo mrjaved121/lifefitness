@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { getCurrentProfile, isOwner } from "@/lib/auth";
 import { PlansGrid } from "./PlansGrid";
 import { PlanForm } from "./PlanForm";
@@ -10,7 +11,9 @@ export default async function PlansPage() {
 
   const [{ data: plans }, { data: memberPlans }] = await Promise.all([
     supabase.from("plans").select("*").order("price", { ascending: true }),
-    supabase.from("members").select("plan_id").not("plan_id", "is", null),
+    fetchAll((from, to) =>
+      supabase.from("members").select("plan_id").not("plan_id", "is", null).order("id").range(from, to)
+    ),
   ]);
 
   const memberCounts: Record<string, number> = {};
