@@ -56,12 +56,31 @@ export function monthLabel(offsetMonths = 0) {
   });
 }
 
+// wa.me wants the international form; local Pakistani numbers (03XX...) start with 0.
+function whatsAppNumber(phone: string) {
+  return phone.replace(/\D/g, "").replace(/^0/, "92");
+}
+
 export function whatsAppReminderLink(phone: string, fullName: string, endDate: string) {
-  // wa.me wants the international form; local Pakistani numbers (03XX...) start with 0.
-  const digits = phone.replace(/\D/g, "").replace(/^0/, "92");
   const status = daysUntil(endDate) < 0 ? "expired" : "expires";
   const message = `Hi ${fullName}, this is a reminder from GymDesk — your membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.`;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${whatsAppNumber(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+// Intl puts a non-breaking space after "Rs"; a plain space reads better in a chat message.
+function plainAmount(amount: number) {
+  return formatCurrency(amount).replace(/ /g, " ");
+}
+
+export function whatsAppDuesLink(phone: string, fullName: string, amount: number) {
+  const message = `Hi ${fullName}, this is a reminder from GymDesk — you have an outstanding balance of ${plainAmount(amount)} on your membership. Please clear it at your earliest convenience. Thank you!`;
+  return `https://wa.me/${whatsAppNumber(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+export function emailDuesLink(email: string, fullName: string, amount: number) {
+  const subject = "Outstanding membership balance";
+  const body = `Hi ${fullName},\n\nThis is a reminder that you have an outstanding balance of ${plainAmount(amount)} on your GymDesk membership. Please clear it at your earliest convenience.\n\nThanks!`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 export function emailReminderLink(email: string, fullName: string, endDate: string) {

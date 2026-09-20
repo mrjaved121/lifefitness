@@ -4,13 +4,16 @@ import { fetchAll } from "@/lib/supabase/fetchAll";
 import { getCurrentProfile, isOwner } from "@/lib/auth";
 import { buttonVariants } from "@/components/buttonStyles";
 import { StatusBadge } from "@/components/StatusBadge";
-import { formatCurrency, formatDate, daysUntil, todayStr } from "@/lib/format";
+import { PrintButton } from "@/components/PrintButton";
+import { addDays, daysUntil, emailDuesLink, formatCurrency, formatDate, todayStr, whatsAppDuesLink } from "@/lib/format";
 import {
   RANGE_PRESETS,
   duesQueue,
   groupSum,
+  methodBreakdown,
   methodLabel,
   renewalQueue,
+  resolveDate,
   resolveRange,
   resolveTab,
   statusSnapshot,
@@ -40,6 +43,8 @@ type MemberRow = {
   status: MemberStatus;
   end_date: string;
   created_at: string | null;
+  phone: string | null;
+  email: string | null;
   plans: { name: string } | null;
 };
 
@@ -49,7 +54,7 @@ const inputClass =
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; range?: string; start?: string; end?: string }>;
+  searchParams: Promise<{ tab?: string; range?: string; start?: string; end?: string; date?: string }>;
 }) {
   const params = await searchParams;
   const profile = await getCurrentProfile();
@@ -57,6 +62,8 @@ export default async function ReportsPage({
   const today = todayStr();
   const tab = resolveTab(params.tab, owner);
   const range = resolveRange(params, today);
+  const day = resolveDate(params.date, today);
+  const paymentRange = tab === "daily" ? { start: day, end: day } : range;
   const supabase = await createClient();
 
   // Only load what the selected tab actually shows.
@@ -65,14 +72,14 @@ export default async function ReportsPage({
   const needBalances = tab === "members";
   const empty = { data: [] as unknown[], error: null };
 
-  const [paymentsRes, membersRes, balancesRes] = await Promise.all([
+  const [paymentsRes, membersRes, balancesRes, checkInsRes] = await Promise.all([
     needPayments
       ? fetchAll((from, to) =>
           supabase
             .from("payments")
             .select("id, member_id, amount, payment_date, method, members(full_name, plans(name)), profiles(full_name)")
-            .gte("payment_date", range.start)
-            .lte("payment_date", range.end)
+            .gte("payment_date", paymentRange.start)
+            .lte("payment_date", paymentRange.end)
             .order("payment_date", { ascending: false })
             .order("id")
             .range(from, to)
@@ -82,7 +89,7 @@ export default async function ReportsPage({
       ? fetchAll((from, to) =>
           supabase
             .from("members")
-            .select("id, full_name, status, end_date, created_at, plans(name)")
+            .select("id, full_name, status, end_date, created_at, phone, email, plans(name)")
             .order("created_at", { ascending: false })
             .order("id")
             .range(from, to)
@@ -93,12 +100,16 @@ export default async function ReportsPage({
           supabase.from("member_balances").select("member_id, outstanding").gt("outstanding", 0).order("member_id").range(from, to)
         )
       : Promise.resolve(empty),
+    tab === "daily"
+      ? supabase.from("check_ins").select("id", { count: "exact", head: true }).eq("check_in_date", day)
+      : Promise.resolve({ count: null as number | null, error: null }),
   ]);
 
   const payments = paymentsRes.data as PaymentRow[];
   const members = membersRes.data as MemberRow[];
   const balances = balancesRes.data as BalanceRow[];
-  const loadError = paymentsRes.error || membersRes.error || balancesRes.error;
+  const loadError = paymentsRes.error || membersRes.error || balancesRes.error || checkInsRes.error?.message;
+  const dayCheckIns = checkInsRes.count ?? 0;
 
   const revenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const average = payments.length ? revenue / payments.length : 0;
@@ -106,6 +117,8 @@ export default async function ReportsPage({
   const byMethod = groupSum(payments, (p) => methodLabel(p.method), amount);
   const byPlan = groupSum(payments, (p) => p.members?.plans?.name ?? "No plan", amount);
   const byStaff = groupSum(payments, (p) => p.profiles?.full_name || "Unknown", amount);
+  const dayMethods = methodBreakdown(payments);
+  const dayCash = dayMethods.find((m) => m.label === methodLabel("cash"))?.value ?? 0;
 
   const snapshot = statusSnapshot(members, today);
   const joinedOn = (m: MemberRow) => (m.created_at ?? "").slice(0, 10);
@@ -133,6 +146,7 @@ export default async function ReportsPage({
 
   const tabs: { key: ReportTab; label: string }[] = [
     { key: "overview", label: "Overview" },
+    { key: "daily", label: "Daily" },
     { key: "members", label: "Members" },
     { key: "revenue", label: "Revenue" },
     ...(owner ? [{ key: "staff" as const, label: "Staff" }] : []),
@@ -148,10 +162,36 @@ export default async function ReportsPage({
           <p className="mt-1 text-sm text-body">Understand membership, revenue and gym performance.</p>
         </div>
         <p className="text-sm text-muted">
-          {formatDate(range.start)} – {formatDate(range.end)}
+          {tab === "daily" ? formatDate(day) : `${formatDate(range.start)} – ${formatDate(range.end)}`}
         </p>
       </div>
 
+      {tab === "daily" && (
+        <div className="space-y-4 rounded-xl border border-border bg-surface p-4 print:hidden">
+          <div className="flex flex-wrap items-center gap-2">
+            <PillLink href="/reports?tab=daily" active={day === today}>
+              Today
+            </PillLink>
+            <PillLink href={`/reports?tab=daily&date=${addDays(today, -1)}`} active={day === addDays(today, -1)}>
+              Yesterday
+            </PillLink>
+          </div>
+          <form className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="tab" value="daily" />
+            <div>
+              <label htmlFor="report-date" className="block text-xs font-medium text-body">
+                Date
+              </label>
+              <input id="report-date" type="date" name="date" defaultValue={day} className={inputClass} />
+            </div>
+            <button type="submit" className={buttonVariants.secondary}>
+              Show day
+            </button>
+          </form>
+        </div>
+      )}
+
+      {tab !== "daily" && (
       <div className="space-y-4 rounded-xl border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
           {RANGE_PRESETS.map((preset) => (
@@ -179,8 +219,9 @@ export default async function ReportsPage({
           </button>
         </form>
       </div>
+      )}
 
-      <nav aria-label="Report sections" className="flex gap-1 overflow-x-auto border-b border-border">
+      <nav aria-label="Report sections" className="flex gap-1 overflow-x-auto border-b border-border print:hidden">
         {tabs.map((t) => (
           <Link
             key={t.key}
@@ -244,6 +285,96 @@ export default async function ReportsPage({
                 </div>
               ))}
             </dl>
+          </ReportCard>
+        </div>
+      )}
+
+      {tab === "daily" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <ReportKpi
+              label="Total collected"
+              value={formatCurrency(revenue)}
+              hint={`${payments.length} payment${payments.length === 1 ? "" : "s"}`}
+            />
+            <ReportKpi label="Cash in hand" value={formatCurrency(dayCash)} hint="Cash payments only" />
+            <ReportKpi label="Card & bank" value={formatCurrency(revenue - dayCash)} hint="Not in the till" />
+            <ReportKpi label="Check-ins" value={dayCheckIns.toLocaleString()} hint="Visits recorded" />
+          </div>
+
+          <ReportCard title="Collections by method" action={<PrintButton>Print summary</PrintButton>}>
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead>
+                <tr className="text-left text-xs font-medium text-muted">
+                  <th className="py-2 pr-3">Method</th>
+                  <th className="px-3 py-2 text-right">Payments</th>
+                  <th className="px-3 py-2 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {dayMethods.map((m) => (
+                  <tr key={m.label}>
+                    <td className="py-2.5 pr-3 text-heading">{m.label}</td>
+                    <td className="px-3 py-2.5 text-right text-body">{m.count.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-heading">{formatCurrency(m.value)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="py-2.5 pr-3 font-semibold text-heading">Total</td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-heading">{payments.length.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-heading">{formatCurrency(revenue)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </ReportCard>
+
+          {owner && (
+            <ReportCard title="Collected by staff">
+              <BarList entries={byStaff} format={formatCurrency} />
+            </ReportCard>
+          )}
+
+          <ReportCard title="Payments">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-muted">
+                    <th className="py-2 pr-3">Member</th>
+                    <th className="px-3 py-2">Plan</th>
+                    <th className="px-3 py-2">Method</th>
+                    {owner && <th className="px-3 py-2">Recorded by</th>}
+                    <th className="px-3 py-2 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {payments.slice(0, PAYMENT_ROW_LIMIT).map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2.5 pr-3">
+                        <Link href={`/members/${p.member_id}`} className="text-heading hover:text-primary">
+                          {p.members?.full_name ?? "—"}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 text-body">{p.members?.plans?.name ?? "—"}</td>
+                      <td className="px-3 py-2.5 text-body">{methodLabel(p.method)}</td>
+                      {owner && <td className="px-3 py-2.5 text-body">{p.profiles?.full_name || "—"}</td>}
+                      <td className="px-3 py-2.5 text-right font-medium text-heading">{formatCurrency(Number(p.amount))}</td>
+                    </tr>
+                  ))}
+                  {payments.length === 0 && (
+                    <tr>
+                      <td colSpan={owner ? 5 : 4} className="py-6 text-center text-muted">
+                        No payments recorded on this day.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {payments.length > PAYMENT_ROW_LIMIT && (
+              <p className="mt-3 text-xs text-muted">
+                Showing the first {PAYMENT_ROW_LIMIT} of {payments.length.toLocaleString()}.
+              </p>
+            )}
           </ReportCard>
         </div>
       )}
@@ -358,6 +489,7 @@ export default async function ReportsPage({
                     <th className="px-3 py-2">Plan</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2 text-right">Outstanding</th>
+                    <th className="px-3 py-2 text-right">Remind</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -373,11 +505,31 @@ export default async function ReportsPage({
                         <StatusBadge status={m.status} endDate={m.end_date} />
                       </td>
                       <td className="px-3 py-2.5 text-right font-medium text-danger">{formatCurrency(m.outstanding)}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        <span className="inline-flex items-center gap-3 text-xs font-medium">
+                          {m.phone && (
+                            <a
+                              href={whatsAppDuesLink(m.phone, m.full_name, m.outstanding)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-success hover:underline"
+                            >
+                              WhatsApp
+                            </a>
+                          )}
+                          {m.email && (
+                            <a href={emailDuesLink(m.email, m.full_name, m.outstanding)} className="text-info hover:underline">
+                              Email
+                            </a>
+                          )}
+                          {!m.phone && !m.email && <span className="text-muted">—</span>}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                   {dues.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-muted">
+                      <td colSpan={5} className="py-6 text-center text-muted">
                         No outstanding balances.
                       </td>
                     </tr>

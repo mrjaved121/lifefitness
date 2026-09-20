@@ -29,7 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-1 flex-col md:flex-row">
       <Sidebar sections={sections} fullName={profile.full_name || ""} role={profile.role} />
-      <main className="flex-1 p-4 pb-24 md:p-8">{children}</main>
+      <main className="flex-1 p-4 pb-24 md:p-8 print:p-0">{children}</main>
       <FlashToast />
     </div>
   );

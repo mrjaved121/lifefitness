@@ -6,7 +6,7 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { Avatar } from "@/components/Avatar";
 import { CheckInButton } from "@/components/CheckInButton";
 import { buttonVariants } from "@/components/buttonStyles";
-import { daysUntil, formatCurrency, formatDate, todayStr } from "@/lib/format";
+import { daysUntil, emailDuesLink, formatCurrency, formatDate, todayStr, whatsAppDuesLink } from "@/lib/format";
 import { deleteMember, toggleFreeze } from "@/lib/actions/members";
 import { MemberTabs } from "./MemberTabs";
 
@@ -92,7 +92,24 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
           </p>
         )}
         {outstanding > 0 && (
-          <p className="mt-1 text-xs font-semibold text-danger">Outstanding: {formatCurrency(outstanding)}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <p className="font-semibold text-danger">Outstanding: {formatCurrency(outstanding)}</p>
+            {member.phone && (
+              <a
+                href={whatsAppDuesLink(member.phone, member.full_name, outstanding)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-success hover:underline"
+              >
+                Remind on WhatsApp
+              </a>
+            )}
+            {member.email && (
+              <a href={emailDuesLink(member.email, member.full_name, outstanding)} className="font-medium text-info hover:underline">
+                Remind by email
+              </a>
+            )}
+          </div>
         )}
       </div>
 

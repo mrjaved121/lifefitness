@@ -47,14 +47,20 @@ export function resolveRange(
   }
 }
 
-export type ReportTab = "overview" | "members" | "revenue" | "staff";
+export type ReportTab = "overview" | "daily" | "members" | "revenue" | "staff";
 
 // Staff numbers come from profiles, which only owners can read in full, so
 // anyone else asking for that tab lands on the overview instead.
 export function resolveTab(tab: string | undefined, canSeeStaff: boolean): ReportTab {
-  if (tab === "members" || tab === "revenue") return tab;
+  if (tab === "members" || tab === "revenue" || tab === "daily") return tab;
   if (tab === "staff" && canSeeStaff) return "staff";
   return "overview";
+}
+
+// The single day the daily summary covers; anything that isn't a real
+// calendar date falls back to today.
+export function resolveDate(value: string | undefined, today: string): string {
+  return isRealDate(value) ? value : today;
 }
 
 export type Entry = { label: string; value: number; count: number };
@@ -74,6 +80,21 @@ export function groupSum<T>(rows: T[], label: (row: T) => string, amount: (row: 
 export function methodLabel(method: string) {
   const spaced = method.replace(/_/g, " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+const PAYMENT_METHODS = ["cash", "card", "bank_transfer"];
+
+// One row per payment method, always all of them (even at zero), so a
+// till-closing summary shows "Card: 0" rather than silently omitting it.
+export function methodBreakdown<T extends { method: string; amount: number | string }>(payments: T[]): Entry[] {
+  return PAYMENT_METHODS.map((method) => {
+    const matching = payments.filter((p) => p.method === method);
+    return {
+      label: methodLabel(method),
+      value: matching.reduce((sum, p) => sum + Number(p.amount), 0),
+      count: matching.length,
+    };
+  });
 }
 
 type MemberLike = { status: string; end_date: string };

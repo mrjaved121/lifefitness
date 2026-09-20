@@ -43,7 +43,7 @@ export function Sidebar({
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
+      <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden print:hidden">
         <div className="flex items-center gap-2">
           <BarbellIcon className="h-5 w-5 text-primary" />
           <span className="text-lg font-semibold text-heading">GymDesk</span>
@@ -62,10 +62,10 @@ export function Sidebar({
         </button>
       </div>
 
-      {open && <div className="fixed inset-0 z-40 bg-heading/30 md:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 z-40 bg-heading/30 md:hidden print:hidden" onClick={() => setOpen(false)} />}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-border bg-surface transition-transform md:static md:z-auto md:w-60 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-border bg-surface transition-transform md:static md:z-auto md:w-60 md:translate-x-0 print:hidden ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -126,7 +126,7 @@ export function Sidebar({
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-flow-col auto-cols-fr border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-flow-col auto-cols-fr border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
         {primaryLinks.map((link) => {
           const active = isActive(link.href);

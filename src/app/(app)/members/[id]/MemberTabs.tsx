@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { formatCurrency, formatDate, monthStart } from "@/lib/format";
 import { summarizeAttendance } from "@/lib/attendance";
@@ -159,6 +160,7 @@ export function MemberTabs({
                     <th className="px-3 py-2">Amount</th>
                     <th className="px-3 py-2">Method</th>
                     <th className="px-3 py-2">Notes</th>
+                    <th className="px-3 py-2" />
                     {isOwner && <th className="px-3 py-2" />}
                   </tr>
                 </thead>
@@ -169,6 +171,11 @@ export function MemberTabs({
                       <td className="px-3 py-2.5 font-medium text-heading">{formatCurrency(Number(p.amount))}</td>
                       <td className="px-3 py-2.5 capitalize text-body">{p.method.replace("_", " ")}</td>
                       <td className="px-3 py-2.5 text-body">{p.notes || "—"}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        <Link href={`/receipts/${p.id}`} className="text-sm font-medium text-primary hover:text-primary-hover">
+                          Receipt
+                        </Link>
+                      </td>
                       {isOwner && (
                         <td className="px-3 py-2.5 text-right">
                           <form action={deletePayment.bind(null, p.id, member.id)}>
@@ -180,7 +187,7 @@ export function MemberTabs({
                   ))}
                   {payments.length === 0 && (
                     <tr>
-                      <td colSpan={isOwner ? 5 : 4} className="py-6 text-center text-muted">
+                      <td colSpan={isOwner ? 6 : 5} className="py-6 text-center text-muted">
                         No payments recorded.
                       </td>
                     </tr>
