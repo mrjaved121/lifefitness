@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Avatar } from "@/components/Avatar";
 import { LinkButton } from "@/components/LinkButton";
+import { buttonVariants } from "@/components/buttonStyles";
 import { CheckInButton } from "@/components/CheckInButton";
 import { formatDate, todayStr, addDays } from "@/lib/format";
 import { parsePage, paginate } from "@/lib/pagination";
@@ -112,7 +113,12 @@ export default async function MembersPage({
           <h1 className="text-2xl font-bold text-heading">Members</h1>
           <p className="mt-1 text-sm text-body">Manage memberships, plans and member information.</p>
         </div>
-        <LinkButton href="/members/new">+ Add Member</LinkButton>
+        <div className="flex items-center gap-3">
+          <Link href="/members/import" className={buttonVariants.secondary}>
+            Import
+          </Link>
+          <LinkButton href="/members/new">+ Add Member</LinkButton>
+        </div>
       </div>
 
       <form className="flex flex-col gap-3 sm:flex-row sm:items-center">
