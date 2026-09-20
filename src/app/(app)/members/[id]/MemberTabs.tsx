@@ -18,6 +18,7 @@ export function MemberTabs({
   payments,
   activePlans,
   checkIns,
+  outstanding,
   isOwner,
 }: {
   member: Member;
@@ -25,6 +26,7 @@ export function MemberTabs({
   payments: Pick<Payment, "id" | "amount" | "payment_date" | "method" | "notes">[];
   activePlans: Plan[];
   checkIns: Pick<CheckIn, "id" | "check_in_date">[];
+  outstanding: number;
   isOwner: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
@@ -91,6 +93,12 @@ export function MemberTabs({
               <div className="flex justify-between">
                 <dt className="text-muted">Total paid</dt>
                 <dd className="font-medium text-heading">{formatCurrency(totalPaid)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">Outstanding balance</dt>
+                <dd className={`font-medium ${outstanding > 0 ? "text-danger" : "text-heading"}`}>
+                  {outstanding > 0 ? formatCurrency(outstanding) : "Paid in full"}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted">Last visit</dt>

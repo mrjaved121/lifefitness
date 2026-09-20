@@ -7,12 +7,14 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { formatCurrency, formatDate, daysUntil, todayStr } from "@/lib/format";
 import {
   RANGE_PRESETS,
+  duesQueue,
   groupSum,
   methodLabel,
   renewalQueue,
   resolveRange,
   resolveTab,
   statusSnapshot,
+  type BalanceRow,
   type RangePreset,
   type ReportTab,
 } from "@/lib/reports";
@@ -60,9 +62,10 @@ export default async function ReportsPage({
   // Only load what the selected tab actually shows.
   const needPayments = tab !== "members";
   const needMembers = tab === "overview" || tab === "members";
+  const needBalances = tab === "members";
   const empty = { data: [] as unknown[], error: null };
 
-  const [paymentsRes, membersRes] = await Promise.all([
+  const [paymentsRes, membersRes, balancesRes] = await Promise.all([
     needPayments
       ? fetchAll((from, to) =>
           supabase
@@ -85,11 +88,17 @@ export default async function ReportsPage({
             .range(from, to)
         )
       : Promise.resolve(empty),
+    needBalances
+      ? fetchAll((from, to) =>
+          supabase.from("member_balances").select("member_id, outstanding").gt("outstanding", 0).order("member_id").range(from, to)
+        )
+      : Promise.resolve(empty),
   ]);
 
   const payments = paymentsRes.data as PaymentRow[];
   const members = membersRes.data as MemberRow[];
-  const loadError = paymentsRes.error || membersRes.error;
+  const balances = balancesRes.data as BalanceRow[];
+  const loadError = paymentsRes.error || membersRes.error || balancesRes.error;
 
   const revenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
   const average = payments.length ? revenue / payments.length : 0;
@@ -102,6 +111,8 @@ export default async function ReportsPage({
   const joinedOn = (m: MemberRow) => (m.created_at ?? "").slice(0, 10);
   const newMembers = members.filter((m) => joinedOn(m) >= range.start && joinedOn(m) <= range.end);
   const renewals = renewalQueue(members, today, 30);
+  const dues = duesQueue(members, balances);
+  const totalOutstanding = dues.reduce((sum, d) => sum + d.outstanding, 0);
 
   const isCustom = range.preset === null;
   function href(next: { tab?: ReportTab; preset?: RangePreset }) {
@@ -239,11 +250,12 @@ export default async function ReportsPage({
 
       {tab === "members" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             <ReportKpi label="New members" value={newMembers.length.toLocaleString()} hint="Joined in this period" />
             <ReportKpi label="Active" value={(snapshot.active + snapshot.expiring).toLocaleString()} />
             <ReportKpi label="Renewals due (30 days)" value={renewals.length.toLocaleString()} />
             <ReportKpi label="Expired" value={snapshot.expired.toLocaleString()} />
+            <ReportKpi label="Outstanding dues" value={formatCurrency(totalOutstanding)} hint={`${dues.length} members`} />
           </div>
 
           <ReportCard
@@ -335,6 +347,49 @@ export default async function ReportsPage({
                 </tbody>
               </table>
             </div>
+          </ReportCard>
+
+          <ReportCard title="Members with dues">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-muted">
+                    <th className="py-2 pr-3">Member</th>
+                    <th className="px-3 py-2">Plan</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2 text-right">Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {dues.slice(0, MEMBER_ROW_LIMIT).map((m) => (
+                    <tr key={m.id}>
+                      <td className="py-2.5 pr-3">
+                        <Link href={`/members/${m.id}`} className="font-medium text-heading hover:text-primary">
+                          {m.full_name}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 text-body">{m.plans?.name ?? "—"}</td>
+                      <td className="px-3 py-2.5">
+                        <StatusBadge status={m.status} endDate={m.end_date} />
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-medium text-danger">{formatCurrency(m.outstanding)}</td>
+                    </tr>
+                  ))}
+                  {dues.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-muted">
+                        No outstanding balances.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {dues.length > MEMBER_ROW_LIMIT && (
+              <p className="mt-3 text-xs text-muted">
+                Showing the {MEMBER_ROW_LIMIT} largest of {dues.length.toLocaleString()}.
+              </p>
+            )}
           </ReportCard>
         </div>
       )}

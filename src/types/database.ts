@@ -32,6 +32,7 @@ export interface Member {
   start_date: string;
   end_date: string;
   status: MemberStatus;
+  expected_amount: number;
   created_by: string | null;
   created_at: string;
 }
@@ -57,5 +58,12 @@ export interface CheckIn {
   check_in_date: string;
   checked_in_at: string;
   checked_in_by: string | null;
+}
+
+export interface MemberBalance {
+  member_id: string;
+  expected_amount: number;
+  paid_this_period: number;
+  outstanding: number;
 }
 

@@ -40,6 +40,14 @@ create table if not exists members (
   start_date date not null,
   end_date date not null,
   status text check (status in ('active', 'expired', 'frozen')) not null default 'active',
+  -- Price agreed for the CURRENT period (set at signup/renewal from the
+  -- plan's price at that time), so a later plan price change or an
+  -- under-collected payment doesn't retroactively change what was owed.
+  -- billing_period_start marks when that obligation took effect - NOT the
+  -- same as start_date, which an early renewal can push into the future
+  -- (see MEMBER BALANCES VIEW below).
+  expected_amount numeric not null default 0 check (expected_amount >= 0),
+  billing_period_start timestamptz not null default now(),
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz default now(),
   constraint end_after_start check (end_date >= start_date)
@@ -198,6 +206,7 @@ security definer set search_path = public
 as $$
 declare
   v_duration int;
+  v_price numeric;
   v_current_end date;
   v_new_start date;
   v_new_end date;
@@ -206,7 +215,7 @@ begin
     raise exception 'Not authorized';
   end if;
 
-  select duration_days into v_duration from plans where id = p_plan_id;
+  select duration_days, price into v_duration, v_price from plans where id = p_plan_id;
   if v_duration is null then
     raise exception 'Plan not found';
   end if;
@@ -223,7 +232,9 @@ begin
   set plan_id = p_plan_id,
       start_date = v_new_start,
       end_date = v_new_end,
-      status = 'active'
+      status = 'active',
+      expected_amount = v_price,
+      billing_period_start = now()
   where id = p_member_id;
 
   if p_amount > 0 then
@@ -434,3 +445,37 @@ create policy "check_ins_insert_staff" on check_ins
 
 create policy "check_ins_delete_owner" on check_ins
   for delete using (is_owner());
+
+-- ============================================================
+-- 11. MEMBER BALANCES VIEW
+-- Per-member outstanding balance for the current period: the plan price
+-- agreed at signup/renewal (members.expected_amount) minus whatever has
+-- been paid since that obligation took effect (members.billing_period_start
+-- - deliberately NOT start_date, which an early renewal can push into the
+-- future while the renewal payment itself is recorded today). Read from
+-- src/app/(app)/members/[id]/page.tsx, dashboard/page.tsx and
+-- reports/page.tsx instead of recomputing this in three places.
+--
+-- Compares against payments.created_at (exact insert time), not
+-- payment_date (a plain date, editable for accounting purposes): a payment
+-- recorded just before a same-day renewal, and the renewal's own payment
+-- recorded just after, would otherwise be indistinguishable at day
+-- granularity and both get counted toward the new period.
+--
+-- security_invoker makes the view run under the querying user's own RLS
+-- (the same "any staff can read" policy members/payments already have),
+-- rather than bypassing it the way a SECURITY DEFINER function would.
+-- ============================================================
+
+create or replace view public.member_balances
+with (security_invoker = true) as
+select
+  m.id as member_id,
+  m.expected_amount,
+  coalesce(sum(p.amount) filter (where p.created_at >= m.billing_period_start), 0) as paid_this_period,
+  greatest(m.expected_amount - coalesce(sum(p.amount) filter (where p.created_at >= m.billing_period_start), 0), 0) as outstanding
+from members m
+left join payments p on p.member_id = m.id
+group by m.id, m.expected_amount, m.billing_period_start;
+
+grant select on public.member_balances to authenticated;

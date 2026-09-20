@@ -42,7 +42,7 @@ export async function createMember(_prevState: ActionState, formData: FormData):
 
   const { data: plan, error: planError } = await supabase
     .from("plans")
-    .select("duration_days")
+    .select("duration_days, price")
     .eq("id", plan_id)
     .single();
 
@@ -70,6 +70,7 @@ export async function createMember(_prevState: ActionState, formData: FormData):
       start_date,
       end_date,
       status: "active",
+      expected_amount: plan.price,
       created_by: user.id,
     })
     .select("id")

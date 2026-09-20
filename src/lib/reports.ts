@@ -101,3 +101,18 @@ export function renewalQueue<T extends MemberLike>(members: T[], today: string, 
     .filter((m) => m.status === "active" && m.end_date <= limit)
     .sort((a, b) => a.end_date.localeCompare(b.end_date));
 }
+
+export type BalanceRow = { member_id: string; outstanding: number };
+
+// Members with a balance still owed for their current period (largest
+// first), joined against the member_balances view by id.
+export function duesQueue<T extends { id: string }>(
+  members: T[],
+  balances: BalanceRow[]
+): (T & { outstanding: number })[] {
+  const byId = new Map(balances.filter((b) => b.outstanding > 0).map((b) => [b.member_id, Number(b.outstanding)]));
+  return members
+    .filter((m) => byId.has(m.id))
+    .map((m) => ({ ...m, outstanding: byId.get(m.id)! }))
+    .sort((a, b) => b.outstanding - a.outstanding);
+}

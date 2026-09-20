@@ -6,7 +6,7 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { Avatar } from "@/components/Avatar";
 import { CheckInButton } from "@/components/CheckInButton";
 import { buttonVariants } from "@/components/buttonStyles";
-import { daysUntil, formatDate, todayStr } from "@/lib/format";
+import { daysUntil, formatCurrency, formatDate, todayStr } from "@/lib/format";
 import { deleteMember, toggleFreeze } from "@/lib/actions/members";
 import { MemberTabs } from "./MemberTabs";
 
@@ -22,7 +22,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const profile = await getCurrentProfile();
   const owner = isOwner(profile);
 
-  const [{ data: member }, { data: payments }, { data: plans }, { data: checkIns }] = await Promise.all([
+  const [{ data: member }, { data: payments }, { data: plans }, { data: checkIns }, { data: balance }] = await Promise.all([
     supabase.from("members").select("*, plans(name, duration_days, price)").eq("id", id).single(),
     supabase
       .from("payments")
@@ -31,6 +31,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
       .order("payment_date", { ascending: false }),
     supabase.from("plans").select("*").eq("is_active", true).order("price", { ascending: true }),
     supabase.from("check_ins").select("id, check_in_date").eq("member_id", id).order("check_in_date", { ascending: false }),
+    supabase.from("member_balances").select("outstanding").eq("member_id", id).maybeSingle(),
   ]);
 
   if (!member) notFound();
@@ -39,6 +40,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const days = daysUntil(member.end_date);
   const banner = BANNER[member.status];
   const checkedInToday = (checkIns ?? []).some((c) => c.check_in_date === todayStr());
+  const outstanding = Number(balance?.outstanding ?? 0);
 
   return (
     <div className="space-y-6">
@@ -89,6 +91,9 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
             {days === 0 ? "Expires today" : days > 0 ? `${days} days remaining` : `Expired ${Math.abs(days)} days ago`}
           </p>
         )}
+        {outstanding > 0 && (
+          <p className="mt-1 text-xs font-semibold text-danger">Outstanding: {formatCurrency(outstanding)}</p>
+        )}
       </div>
 
       <MemberTabs
@@ -97,6 +102,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
         payments={payments || []}
         activePlans={plans || []}
         checkIns={checkIns || []}
+        outstanding={outstanding}
         isOwner={owner}
       />
     </div>
