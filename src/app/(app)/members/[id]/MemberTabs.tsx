@@ -2,45 +2,54 @@
 
 import { useState } from "react";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, monthStart } from "@/lib/format";
+import { summarizeAttendance } from "@/lib/attendance";
 import { deletePayment } from "@/lib/actions/payments";
+import { deleteCheckIn } from "@/lib/actions/checkins";
 import { RenewForm } from "./RenewForm";
 import { PaymentForm } from "./PaymentForm";
-import type { Payment, Plan, Member } from "@/types/database";
+import type { CheckIn, Payment, Plan, Member } from "@/types/database";
 
-type Tab = "overview" | "membership" | "payments";
+type Tab = "overview" | "membership" | "payments" | "attendance";
 
 export function MemberTabs({
   member,
   planName,
   payments,
   activePlans,
+  checkIns,
   isOwner,
 }: {
   member: Member;
   planName: string | null;
   payments: Pick<Payment, "id" | "amount" | "payment_date" | "method" | "notes">[];
   activePlans: Plan[];
+  checkIns: Pick<CheckIn, "id" | "check_in_date">[];
   isOwner: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
   const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const attendance = summarizeAttendance(
+    checkIns.map((c) => c.check_in_date),
+    monthStart(0)
+  );
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "membership", label: "Membership" },
     { id: "payments", label: "Payments" },
+    { id: "attendance", label: "Attendance" },
   ];
 
   return (
     <div>
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 overflow-x-auto border-b border-border">
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
               tab === t.id ? "border-primary text-primary" : "border-transparent text-muted hover:text-body"
             }`}
           >
@@ -82,6 +91,10 @@ export function MemberTabs({
               <div className="flex justify-between">
                 <dt className="text-muted">Total paid</dt>
                 <dd className="font-medium text-heading">{formatCurrency(totalPaid)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">Last visit</dt>
+                <dd className="font-medium text-heading">{attendance.lastVisit ? formatDate(attendance.lastVisit) : "Never"}</dd>
               </div>
             </dl>
           </div>
@@ -173,6 +186,61 @@ export function MemberTabs({
             <div className="mt-3">
               <PaymentForm memberId={member.id} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "attendance" && (
+        <div className="space-y-6 pt-5">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs text-muted">Total visits</p>
+              <p className="mt-1 text-xl font-bold text-heading">{attendance.totalVisits.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs text-muted">This month</p>
+              <p className="mt-1 text-xl font-bold text-heading">{attendance.thisMonthVisits.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs text-muted">Last visit</p>
+              <p className="mt-1 text-xl font-bold text-heading">{attendance.lastVisit ? formatDate(attendance.lastVisit) : "Never"}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-sm font-semibold text-heading">Recent visits</h3>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full divide-y divide-border text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-muted">
+                    <th className="py-2 pr-3">Date</th>
+                    {isOwner && <th className="px-3 py-2" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {checkIns.slice(0, 30).map((c) => (
+                    <tr key={c.id}>
+                      <td className="py-2.5 pr-3 text-body">{formatDate(c.check_in_date)}</td>
+                      {isOwner && (
+                        <td className="px-3 py-2.5 text-right">
+                          <form action={deleteCheckIn.bind(null, c.id, member.id)}>
+                            <ConfirmSubmit confirmText="Remove this visit record?">Delete</ConfirmSubmit>
+                          </form>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {checkIns.length === 0 && (
+                    <tr>
+                      <td colSpan={isOwner ? 2 : 1} className="py-6 text-center text-muted">
+                        No visits recorded yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {checkIns.length > 30 && <p className="mt-3 text-xs text-muted">Showing the 30 most recent visits.</p>}
           </div>
         </div>
       )}

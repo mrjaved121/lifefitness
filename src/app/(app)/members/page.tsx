@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Avatar } from "@/components/Avatar";
 import { LinkButton } from "@/components/LinkButton";
+import { CheckInButton } from "@/components/CheckInButton";
 import { formatDate, todayStr, addDays } from "@/lib/format";
 import { parsePage, paginate } from "@/lib/pagination";
 
@@ -83,6 +84,14 @@ export default async function MembersPage({
     ? { data: null, error: countError }
     : await dataQuery.range(pageInfo.from, pageInfo.to);
   const error = countError || dataError;
+
+  const today = todayStr();
+  const memberIds = (members ?? []).map((m) => m.id);
+  const { data: todaysCheckIns } =
+    memberIds.length > 0
+      ? await supabase.from("check_ins").select("member_id").eq("check_in_date", today).in("member_id", memberIds)
+      : { data: [] as { member_id: string }[] };
+  const checkedInToday = new Set((todaysCheckIns ?? []).map((c) => c.member_id));
 
   // Both fields are required (no partial-merge defaults): a link that means
   // to clear the status filter needs to pass status: undefined explicitly,
@@ -174,6 +183,7 @@ export default async function MembersPage({
                   <th className="px-4 py-3 text-left font-medium text-muted">Plan</th>
                   <th className="px-4 py-3 text-left font-medium text-muted">Expires</th>
                   <th className="px-4 py-3 text-left font-medium text-muted">Status</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted">Today</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -196,21 +206,22 @@ export default async function MembersPage({
                     <td className="px-4 py-3">
                       <StatusBadge status={m.status} endDate={m.end_date} />
                     </td>
+                    <td className="px-4 py-3">
+                      <CheckInButton memberId={m.id} checkedIn={checkedInToday.has(m.id)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Mobile cards */}
+          {/* Mobile cards. The check-in button is a sibling of the Link, not
+              nested inside it - a <form> inside an <a> is invalid HTML and
+              would fight the anchor for the click. */}
           <div className="grid grid-cols-1 gap-3 md:hidden">
             {members?.map((m) => (
-              <Link
-                key={m.id}
-                href={`/members/${m.id}`}
-                className="rounded-xl border border-border bg-surface p-4 active:bg-app-bg"
-              >
-                <div className="flex items-center gap-3">
+              <div key={m.id} className="rounded-xl border border-border bg-surface p-4">
+                <Link href={`/members/${m.id}`} className="flex items-center gap-3 active:opacity-70">
                   <Avatar src={m.photo_url} name={m.full_name} className="h-10 w-10 shrink-0 text-sm" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-heading">{m.full_name}</p>
@@ -221,12 +232,12 @@ export default async function MembersPage({
                     </p>
                   </div>
                   <StatusBadge status={m.status} endDate={m.end_date} />
-                </div>
+                </Link>
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
-                  <span className="text-muted">Expires</span>
-                  <span className="font-medium text-heading">{formatDate(m.end_date)}</span>
+                  <span className="text-muted">Expires {formatDate(m.end_date)}</span>
+                  <CheckInButton memberId={m.id} checkedIn={checkedInToday.has(m.id)} />
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
 

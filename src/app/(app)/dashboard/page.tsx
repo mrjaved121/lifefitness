@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   // Two queries instead of many separate count queries: pull the fields
   // needed for every KPI/list on this page once each, then aggregate in JS.
   // fetchAll pages through the results - a plain select() is capped at 1000 rows.
-  const [{ data: allMembers }, { data: chartPayments }] = await Promise.all([
+  const [{ data: allMembers }, { data: chartPayments }, { count: checkedInTodayCount }] = await Promise.all([
     fetchAll((from, to) =>
       supabase
         .from("members")
@@ -56,6 +56,7 @@ export default async function DashboardPage() {
         .order("id")
         .range(from, to)
     ),
+    supabase.from("check_ins").select("id", { count: "exact", head: true }).eq("check_in_date", today),
   ]);
 
   const members = allMembers || [];
@@ -122,6 +123,12 @@ export default async function DashboardPage() {
       context: revenueChange === null ? "vs last month: —" : `${revenueChange >= 0 ? "+" : ""}${revenueChange.toFixed(1)}% vs last month`,
       contextTone: revenueChange === null ? "text-muted" : revenueChange >= 0 ? "text-success" : "text-danger",
     },
+    {
+      label: "Checked In Today",
+      value: (checkedInTodayCount ?? 0).toLocaleString(),
+      context: "Visits recorded today",
+      contextTone: "text-muted",
+    },
   ];
 
   const attention = [
@@ -165,7 +172,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="rounded-xl border border-border bg-surface p-5">
             <p className="text-sm text-muted">{kpi.label}</p>

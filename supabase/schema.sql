@@ -66,6 +66,21 @@ create table if not exists audit_log (
   created_at timestamptz default now()
 );
 
+-- One row per member per calendar day - the unique constraint makes
+-- "already checked in today" a graceful DB-level guard against
+-- double-taps rather than something the app has to race to check itself.
+create table if not exists check_ins (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references members(id) on delete cascade,
+  check_in_date date not null default current_date,
+  checked_in_at timestamptz not null default now(),
+  checked_in_by uuid references profiles(id) on delete set null,
+  unique (member_id, check_in_date)
+);
+
+create index if not exists idx_check_ins_member on check_ins(member_id);
+create index if not exists idx_check_ins_date on check_ins(check_in_date);
+
 -- ============================================================
 -- 2. INDEXES (renewal alerts and reports filter/sort on these)
 -- ============================================================
@@ -346,6 +361,7 @@ alter table plans enable row level security;
 alter table members enable row level security;
 alter table payments enable row level security;
 alter table audit_log enable row level security;
+alter table check_ins enable row level security;
 
 -- PROFILES: everyone can see/update their own row; owners can see all
 -- rows, but only super admins can change another account's role (that's
@@ -407,3 +423,14 @@ create policy "payments_delete_owner" on payments
 -- is needed for any role.
 create policy "audit_log_select_super_admin" on audit_log
   for select using (is_super_admin());
+
+-- CHECK-INS: any signed-in staff can view/record; only owners can delete
+-- (correcting a mistaken check-in).
+create policy "check_ins_select_staff" on check_ins
+  for select using (is_staff());
+
+create policy "check_ins_insert_staff" on check_ins
+  for insert with check (is_staff());
+
+create policy "check_ins_delete_owner" on check_ins
+  for delete using (is_owner());

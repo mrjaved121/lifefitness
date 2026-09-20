@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isOwner } from "@/lib/auth";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { Avatar } from "@/components/Avatar";
+import { CheckInButton } from "@/components/CheckInButton";
 import { buttonVariants } from "@/components/buttonStyles";
-import { daysUntil, formatDate } from "@/lib/format";
+import { daysUntil, formatDate, todayStr } from "@/lib/format";
 import { deleteMember, toggleFreeze } from "@/lib/actions/members";
 import { MemberTabs } from "./MemberTabs";
 
@@ -21,7 +22,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const profile = await getCurrentProfile();
   const owner = isOwner(profile);
 
-  const [{ data: member }, { data: payments }, { data: plans }] = await Promise.all([
+  const [{ data: member }, { data: payments }, { data: plans }, { data: checkIns }] = await Promise.all([
     supabase.from("members").select("*, plans(name, duration_days, price)").eq("id", id).single(),
     supabase
       .from("payments")
@@ -29,6 +30,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
       .eq("member_id", id)
       .order("payment_date", { ascending: false }),
     supabase.from("plans").select("*").eq("is_active", true).order("price", { ascending: true }),
+    supabase.from("check_ins").select("id, check_in_date").eq("member_id", id).order("check_in_date", { ascending: false }),
   ]);
 
   if (!member) notFound();
@@ -36,6 +38,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const plan = member.plans as unknown as { name: string; duration_days: number; price: number } | null;
   const days = daysUntil(member.end_date);
   const banner = BANNER[member.status];
+  const checkedInToday = (checkIns ?? []).some((c) => c.check_in_date === todayStr());
 
   return (
     <div className="space-y-6">
@@ -55,6 +58,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <CheckInButton memberId={id} checkedIn={checkedInToday} />
           <Link href={`/members/${id}/edit`} className={buttonVariants.secondary}>
             Edit Member
           </Link>
@@ -92,6 +96,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
         planName={plan?.name ?? null}
         payments={payments || []}
         activePlans={plans || []}
+        checkIns={checkIns || []}
         isOwner={owner}
       />
     </div>

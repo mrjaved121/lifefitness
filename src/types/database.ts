@@ -51,3 +51,11 @@ export interface MemberWithPlan extends Member {
   plans: Pick<Plan, "id" | "name" | "duration_days" | "price"> | null;
 }
 
+export interface CheckIn {
+  id: string;
+  member_id: string;
+  check_in_date: string;
+  checked_in_at: string;
+  checked_in_by: string | null;
+}
+
