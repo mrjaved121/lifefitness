@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Avatar } from "@/components/Avatar";
 import { LinkButton } from "@/components/LinkButton";
 import { formatDate, todayStr, addDays } from "@/lib/format";
+import { parsePage, paginate } from "@/lib/pagination";
 
 const FILTERS = [
   { value: "", label: "All" },
@@ -12,19 +13,32 @@ const FILTERS = [
   { value: "expired", label: "Expired" },
 ];
 
+const PAGE_SIZE = 30;
+
 export default async function MembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
 }) {
-  const { q, status } = await searchParams;
+  const { q, status, page: pageParam } = await searchParams;
   const supabase = await createClient();
 
-  let query = supabase
-    .from("members")
-    .select("id, member_no, full_name, phone, email, address, photo_url, end_date, status, plans(name)")
-    .order("full_name", { ascending: true });
-
+  // A plain select() is capped at 1,000 rows by Supabase with no error, so a
+  // gym past that member count would silently see a wrong list.
+  //
+  // The search/status filter is computed once as a plain PostgREST filter
+  // string, then applied separately to two DIFFERENT queries - a head:true
+  // count-only request, and the real paginated data request - rather than
+  // through a shared generic helper, which sends Supabase's builder types
+  // (already deeply generic) into a TypeScript "instantiation too deep" error.
+  //
+  // Using two queries (instead of one range() request with count attached)
+  // is required, not just convenient: a .range() past the actual result
+  // count makes PostgREST respond 416 (confirmed directly against the API),
+  // not 200-with-empty-data, so the data query's range must always be
+  // computed from a real prior count. head:true never sends a Range header
+  // at all, so it can't hit that 416.
+  let searchFilter: string | null = null;
   if (q) {
     // PostgREST's `.or()` treats `,()"` as structural, so quote the value
     // (escaping embedded quotes) to search safely for terms like "Smith, Jr".
@@ -39,15 +53,48 @@ export default async function MembersPage({
     // would overflow the integer column.
     const digits = q.trim();
     if (/^\d{1,6}$/.test(digits)) filters.push(`member_no.eq.${digits}`);
-    query = query.or(filters.join(","));
+    searchFilter = filters.join(",");
+  }
+  const expiringBy = addDays(todayStr(), 7);
+
+  let countQuery = supabase.from("members").select("id", { count: "exact", head: true });
+  let dataQuery = supabase
+    .from("members")
+    .select("id, member_no, full_name, phone, email, address, photo_url, end_date, status, plans(name)")
+    .order("full_name", { ascending: true })
+    .order("id");
+  if (searchFilter) {
+    countQuery = countQuery.or(searchFilter);
+    dataQuery = dataQuery.or(searchFilter);
   }
   if (status === "expiring") {
-    query = query.eq("status", "active").lte("end_date", addDays(todayStr(), 7));
+    countQuery = countQuery.eq("status", "active").lte("end_date", expiringBy);
+    dataQuery = dataQuery.eq("status", "active").lte("end_date", expiringBy);
   } else if (status) {
-    query = query.eq("status", status);
+    countQuery = countQuery.eq("status", status);
+    dataQuery = dataQuery.eq("status", status);
   }
 
-  const { data: members, error } = await query;
+  const requestedPage = parsePage(pageParam);
+  const { count, error: countError } = await countQuery;
+  const pageInfo = paginate(requestedPage, PAGE_SIZE, count ?? 0);
+
+  const { data: members, error: dataError } = countError
+    ? { data: null, error: countError }
+    : await dataQuery.range(pageInfo.from, pageInfo.to);
+  const error = countError || dataError;
+
+  // Both fields are required (no partial-merge defaults): a link that means
+  // to clear the status filter needs to pass status: undefined explicitly,
+  // which a `next.status ?? status` fallback couldn't tell apart from "unspecified".
+  function href({ status: nextStatus, page: nextPage }: { status: string | undefined; page: number }) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (nextStatus) params.set("status", nextStatus);
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const qs = params.toString();
+    return qs ? `/members?${qs}` : "/members";
+  }
 
   return (
     <div className="space-y-5">
@@ -79,15 +126,12 @@ export default async function MembersPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((f) => {
-            const params = new URLSearchParams();
-            if (q) params.set("q", q);
-            if (f.value) params.set("status", f.value);
-            const href = params.toString() ? `/members?${params.toString()}` : "/members";
             const active = (status || "") === f.value;
             return (
               <Link
                 key={f.value}
-                href={href}
+                href={href({ status: f.value || undefined, page: 1 })}
+                aria-current={active ? "true" : undefined}
                 className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   active ? "bg-primary text-white" : "border border-border bg-surface text-body hover:bg-app-bg"
                 }`}
@@ -97,7 +141,11 @@ export default async function MembersPage({
             );
           })}
         </div>
-        <p className="text-sm text-muted">{members?.length ?? 0} members</p>
+        <p className="text-sm text-muted">
+          {pageInfo.rangeStart === pageInfo.rangeEnd
+            ? `${pageInfo.rangeStart} of ${(count ?? 0).toLocaleString()} member${count === 1 ? "" : "s"}`
+            : `${pageInfo.rangeStart}–${pageInfo.rangeEnd} of ${(count ?? 0).toLocaleString()} members`}
+        </p>
       </div>
 
       {error && <p className="text-sm text-danger">{error.message}</p>}
@@ -181,6 +229,28 @@ export default async function MembersPage({
               </Link>
             ))}
           </div>
+
+          {pageInfo.totalPages > 1 && (
+            <nav aria-label="Members pages" className="flex items-center justify-between gap-3 pt-1">
+              {pageInfo.hasPrev ? (
+                <Link href={href({ status, page: pageInfo.page - 1 })} className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-heading hover:bg-app-bg">
+                  ← Previous
+                </Link>
+              ) : (
+                <span />
+              )}
+              <p className="text-sm text-muted">
+                Page {pageInfo.page} of {pageInfo.totalPages}
+              </p>
+              {pageInfo.hasNext ? (
+                <Link href={href({ status, page: pageInfo.page + 1 })} className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-heading hover:bg-app-bg">
+                  Next →
+                </Link>
+              ) : (
+                <span />
+              )}
+            </nav>
+          )}
         </>
       )}
     </div>
