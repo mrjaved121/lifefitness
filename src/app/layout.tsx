@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { GYM_NAME } from "@/lib/brand";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -8,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "GymDesk",
+  title: GYM_NAME,
   description: "Gym membership, billing, and front-desk management",
 };
 

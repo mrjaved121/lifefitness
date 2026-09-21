@@ -15,6 +15,7 @@ const ROLE_LABEL: Record<string, string> = {
   front_desk: "Front Desk",
   owner: "Owner",
   super_admin: "Super Admin",
+  pending: "Pending approval",
 };
 
 function RoleBadge({ role }: { role: string }) {
@@ -74,6 +75,7 @@ export function StaffTable({ staff, currentUserId }: { staff: StaffMember[]; cur
                     <option value="front_desk">Front desk</option>
                     <option value="owner">Owner</option>
                     <option value="super_admin">Super admin</option>
+                    <option value="pending">Pending approval (no access)</option>
                   </select>
                 )}
               </td>

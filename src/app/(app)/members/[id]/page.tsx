@@ -61,6 +61,9 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
         </div>
         <div className="flex items-center gap-4">
           <CheckInButton memberId={id} checkedIn={checkedInToday} />
+          <Link href={`/members/${id}/card`} className={buttonVariants.secondary}>
+            Print card
+          </Link>
           <Link href={`/members/${id}/edit`} className={buttonVariants.secondary}>
             Edit Member
           </Link>

@@ -8,7 +8,9 @@
 create table if not exists profiles (
   id uuid references auth.users on delete cascade primary key,
   full_name text,
-  role text check (role in ('owner', 'front_desk', 'super_admin')) not null default 'front_desk',
+  -- 'pending' = signed up but not approved yet; sees nothing until a super
+  -- admin (or the SQL editor) gives them a real role. See handle_new_user().
+  role text check (role in ('owner', 'front_desk', 'super_admin', 'pending')) not null default 'pending',
   created_at timestamptz default now()
 );
 
@@ -22,9 +24,10 @@ create table if not exists plans (
   created_at timestamptz default now()
 );
 
--- Register numbers 301-852 were imported from the gym's spreadsheet; new
--- members continue from 853.
-create sequence if not exists members_member_no_seq start 853;
+-- Member numbers count up from 1. A gym that already has a numbered register
+-- continues it after setup by running (in the SQL editor):
+--   alter sequence members_member_no_seq restart with <next number>;
+create sequence if not exists members_member_no_seq start 1;
 grant usage, select on sequence members_member_no_seq to authenticated;
 
 create table if not exists members (
@@ -89,6 +92,25 @@ create table if not exists check_ins (
 create index if not exists idx_check_ins_member on check_ins(member_id);
 create index if not exists idx_check_ins_date on check_ins(check_in_date);
 
+-- Money the gym spends (rent, salaries, ...), for the Reports > Profit tab.
+-- Owners only, for reading AND writing - salaries and rent are exactly what
+-- an owner doesn't want front desk staff browsing. No update policy on
+-- purpose: a wrong entry is deleted (audit-logged) and re-added.
+create table if not exists expenses (
+  id uuid primary key default gen_random_uuid(),
+  category text not null check (category in
+    ('rent', 'salaries', 'utilities', 'equipment', 'maintenance', 'marketing', 'other')),
+  amount numeric not null check (amount > 0),
+  expense_date date not null default current_date,
+  notes text,
+  -- Filled in by the database from the signed-in user, so it can't be spoofed
+  -- (the insert policy below also rejects any other value).
+  recorded_by uuid references profiles(id) on delete set null default auth.uid(),
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_expenses_date on expenses(expense_date);
+
 -- ============================================================
 -- 2. INDEXES (renewal alerts and reports filter/sort on these)
 -- ============================================================
@@ -101,8 +123,14 @@ create index if not exists idx_payments_payment_date on payments(payment_date);
 
 -- ============================================================
 -- 3. AUTO-CREATE PROFILE ON SIGNUP
--- First user created should be manually promoted to 'owner':
---   update profiles set role = 'owner' where id = '<user-uuid>';
+-- Every new account starts as 'pending' and can see nothing: the Supabase
+-- anon key is public, so anyone can call the signup API directly, and an
+-- open door here would expose every member and payment. Approve people by
+-- giving them a real role - the first user is promoted to 'owner' in the
+-- SQL editor:
+--   update profiles set role = 'owner'
+--   where id = (select id from auth.users where email = 'owner@example.com');
+-- After that, a super admin approves others from the Staff page.
 -- ============================================================
 
 create or replace function public.handle_new_user()
@@ -112,7 +140,7 @@ security definer set search_path = public
 as $$
 begin
   insert into public.profiles (id, full_name, role)
-  values (new.id, new.raw_user_meta_data ->> 'full_name', 'front_desk');
+  values (new.id, new.raw_user_meta_data ->> 'full_name', 'pending');
   return new;
 end;
 $$;
@@ -157,7 +185,10 @@ security definer
 set search_path = public
 stable
 as $$
-  select exists (select 1 from profiles where id = auth.uid());
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role in ('owner', 'front_desk', 'super_admin')
+  );
 $$;
 
 create or replace function public.is_owner()
@@ -308,6 +339,31 @@ create trigger on_profile_role_change
   after update on profiles
   for each row execute function public.log_role_change();
 
+-- Nobody using the app can change a role unless they are a super admin.
+-- profiles_update_own (below) lets every user update their own row, and RLS
+-- can't restrict individual columns, so without this guard any signed-in
+-- user could set their own role to 'super_admin'. It only restricts the two
+-- roles API requests run as; the SQL editor and the service-role key are
+-- unaffected (the README's "promote the first owner" step relies on that).
+create or replace function public.guard_role_change()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.role is distinct from old.role
+     and current_user in ('anon', 'authenticated')
+     and not is_super_admin() then
+    raise exception 'Only a super admin can change roles';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_role_guard on profiles;
+create trigger on_profile_role_guard
+  before update on profiles
+  for each row execute function public.guard_role_change();
+
 create or replace function public.log_delete_event()
 returns trigger
 language plpgsql
@@ -333,6 +389,11 @@ create trigger on_payment_delete
 drop trigger if exists on_plan_delete on plans;
 create trigger on_plan_delete
   before delete on plans
+  for each row execute function public.log_delete_event();
+
+drop trigger if exists on_expense_delete on expenses;
+create trigger on_expense_delete
+  before delete on expenses
   for each row execute function public.log_delete_event();
 
 -- ============================================================
@@ -373,6 +434,7 @@ alter table members enable row level security;
 alter table payments enable row level security;
 alter table audit_log enable row level security;
 alter table check_ins enable row level security;
+alter table expenses enable row level security;
 
 -- PROFILES: everyone can see/update their own row; owners can see all
 -- rows, but only super admins can change another account's role (that's
@@ -446,6 +508,16 @@ create policy "check_ins_insert_staff" on check_ins
 create policy "check_ins_delete_owner" on check_ins
   for delete using (is_owner());
 
+-- EXPENSES: owners only, for reading and writing (see the table above).
+create policy "expenses_select_owner" on expenses
+  for select using (is_owner());
+
+create policy "expenses_insert_owner" on expenses
+  for insert with check (is_owner() and (recorded_by is null or recorded_by = auth.uid()));
+
+create policy "expenses_delete_owner" on expenses
+  for delete using (is_owner());
+
 -- ============================================================
 -- 11. MEMBER BALANCES VIEW
 -- Per-member outstanding balance for the current period: the plan price
@@ -479,3 +551,34 @@ left join payments p on p.member_id = m.id
 group by m.id, m.expected_amount, m.billing_period_start;
 
 grant select on public.member_balances to authenticated;
+
+-- ============================================================
+-- 12. MEMBER ACTIVITY VIEW
+-- One row per member with their last check-in and total visits, so the
+-- "Stopped coming" page (src/app/(app)/members/inactive/page.tsx) and the
+-- dashboard's attention list can filter, sort and paginate in the database
+-- instead of pulling every check-in into the app. Carries the member fields
+-- that list shows so a single query is enough. security_invoker, like
+-- member_balances: it runs under the querying user's own RLS.
+-- ============================================================
+
+create or replace view public.member_activity
+with (security_invoker = true) as
+select
+  m.id as member_id,
+  m.member_no,
+  m.full_name,
+  m.phone,
+  m.photo_url,
+  m.status,
+  m.end_date,
+  m.created_at,
+  p.name as plan_name,
+  max(c.check_in_date) as last_visit,
+  count(c.id) as total_visits
+from members m
+left join plans p on p.id = m.plan_id
+left join check_ins c on c.member_id = m.id
+group by m.id, p.id;
+
+grant select on public.member_activity to authenticated;

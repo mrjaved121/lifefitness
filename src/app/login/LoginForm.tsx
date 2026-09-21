@@ -21,7 +21,8 @@ export function LoginForm({ registered }: { registered: boolean }) {
 
       {registered && (
         <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
-          Account created. Check your email to confirm, then sign in.
+          Account created. Confirm your email if asked, then sign in. Someone has to approve your account before you can
+          use the app.
         </p>
       )}
       {state.error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>}

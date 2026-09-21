@@ -5,8 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
 import { BarbellIcon } from "@/components/BarbellIcon";
-import { GridIcon, UsersIcon, TagIcon, ChartIcon, ShieldIcon, ClipboardListIcon, LogoutIcon } from "@/components/icons";
+import {
+  GridIcon,
+  UsersIcon,
+  TagIcon,
+  ChartIcon,
+  ShieldIcon,
+  ClipboardListIcon,
+  LogoutIcon,
+  QrIcon,
+  WalletIcon,
+} from "@/components/icons";
 import { Avatar } from "@/components/Avatar";
+import { GYM_NAME } from "@/lib/brand";
 
 // Server Components can't pass component/function references as props to a
 // Client Component (RSC only serializes plain data across that boundary), so
@@ -15,6 +26,8 @@ import { Avatar } from "@/components/Avatar";
 const ICONS = {
   dashboard: GridIcon,
   members: UsersIcon,
+  checkin: QrIcon,
+  expenses: WalletIcon,
   plans: TagIcon,
   reports: ChartIcon,
   staff: ShieldIcon,
@@ -46,7 +59,7 @@ export function Sidebar({
       <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden print:hidden">
         <div className="flex items-center gap-2">
           <BarbellIcon className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold text-heading">GymDesk</span>
+          <span className="text-lg font-semibold text-heading">{GYM_NAME}</span>
         </div>
         <button
           type="button"
@@ -71,7 +84,7 @@ export function Sidebar({
       >
         <div className="flex items-center gap-2 border-b border-border px-5 py-4">
           <BarbellIcon className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold text-heading">GymDesk</span>
+          <span className="text-lg font-semibold text-heading">{GYM_NAME}</span>
         </div>
 
         <nav className="flex flex-1 flex-col gap-5 overflow-y-auto p-3">

@@ -16,7 +16,7 @@ export function SignupForm() {
     <form action={formAction} className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-surface p-8">
       <div>
         <h1 className="text-2xl font-bold text-heading">Create your account</h1>
-        <p className="mt-1 text-sm text-body">New accounts start as front desk staff. An owner can promote you later.</p>
+        <p className="mt-1 text-sm text-body">New accounts need approval before they can see anything.</p>
       </div>
 
       {state.error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>}

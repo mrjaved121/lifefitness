@@ -1,3 +1,5 @@
+import { GYM_NAME } from "@/lib/brand";
+
 export function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-PK", {
     style: "currency",
@@ -63,7 +65,7 @@ function whatsAppNumber(phone: string) {
 
 export function whatsAppReminderLink(phone: string, fullName: string, endDate: string) {
   const status = daysUntil(endDate) < 0 ? "expired" : "expires";
-  const message = `Hi ${fullName}, this is a reminder from GymDesk — your membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.`;
+  const message = `Hi ${fullName}, this is a reminder from ${GYM_NAME} — your membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.`;
   return `https://wa.me/${whatsAppNumber(phone)}?text=${encodeURIComponent(message)}`;
 }
 
@@ -73,19 +75,27 @@ function plainAmount(amount: number) {
 }
 
 export function whatsAppDuesLink(phone: string, fullName: string, amount: number) {
-  const message = `Hi ${fullName}, this is a reminder from GymDesk — you have an outstanding balance of ${plainAmount(amount)} on your membership. Please clear it at your earliest convenience. Thank you!`;
+  const message = `Hi ${fullName}, this is a reminder from ${GYM_NAME} — you have an outstanding balance of ${plainAmount(amount)} on your membership. Please clear it at your earliest convenience. Thank you!`;
+  return `https://wa.me/${whatsAppNumber(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+// For "Stopped coming": a friendly nudge, not a bill. `lastVisit` is the
+// member's last check-in date, or null if they've never checked in.
+export function whatsAppMissYouLink(phone: string, fullName: string, lastVisit: string | null) {
+  const away = lastVisit ? `since ${formatDate(lastVisit)}` : "for a while";
+  const message = `Hi ${fullName}, this is ${GYM_NAME} — we haven't seen you at the gym ${away} and we miss you! Hope all is well. Come back and train with us soon.`;
   return `https://wa.me/${whatsAppNumber(phone)}?text=${encodeURIComponent(message)}`;
 }
 
 export function emailDuesLink(email: string, fullName: string, amount: number) {
   const subject = "Outstanding membership balance";
-  const body = `Hi ${fullName},\n\nThis is a reminder that you have an outstanding balance of ${plainAmount(amount)} on your GymDesk membership. Please clear it at your earliest convenience.\n\nThanks!`;
+  const body = `Hi ${fullName},\n\nThis is a reminder that you have an outstanding balance of ${plainAmount(amount)} on your ${GYM_NAME} membership. Please clear it at your earliest convenience.\n\nThanks!`;
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 export function emailReminderLink(email: string, fullName: string, endDate: string) {
   const status = daysUntil(endDate) < 0 ? "expired" : "expires";
   const subject = "Membership renewal reminder";
-  const body = `Hi ${fullName},\n\nThis is a reminder that your GymDesk membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.\n\nThanks!`;
+  const body = `Hi ${fullName},\n\nThis is a reminder that your ${GYM_NAME} membership ${status} on ${formatDate(endDate)}. Please renew soon to keep your access active.\n\nThanks!`;
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

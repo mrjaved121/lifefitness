@@ -13,7 +13,7 @@ export const RANGE_PRESETS: { key: RangePreset; label: string }[] = [
 export type ResolvedRange = { start: string; end: string; preset: RangePreset | null };
 
 // Regex alone accepts "2026-02-31"; round-tripping through Date rejects it.
-function isRealDate(value: string | undefined | null): value is string {
+export function isRealDate(value: string | undefined | null): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(value + "T00:00:00Z");
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
@@ -47,13 +47,14 @@ export function resolveRange(
   }
 }
 
-export type ReportTab = "overview" | "daily" | "members" | "revenue" | "staff";
+export type ReportTab = "overview" | "daily" | "members" | "revenue" | "profit" | "staff";
 
-// Staff numbers come from profiles, which only owners can read in full, so
-// anyone else asking for that tab lands on the overview instead.
-export function resolveTab(tab: string | undefined, canSeeStaff: boolean): ReportTab {
+// Staff numbers come from profiles, which only owners can read in full, and
+// expenses (so profit) are owner-only too, so anyone else asking for those
+// tabs lands on the overview instead.
+export function resolveTab(tab: string | undefined, isOwner: boolean): ReportTab {
   if (tab === "members" || tab === "revenue" || tab === "daily") return tab;
-  if (tab === "staff" && canSeeStaff) return "staff";
+  if ((tab === "staff" || tab === "profit") && isOwner) return tab;
   return "overview";
 }
 

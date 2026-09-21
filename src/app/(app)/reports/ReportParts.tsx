@@ -1,11 +1,23 @@
 import Link from "next/link";
 import type { Entry } from "@/lib/reports";
 
-export function ReportKpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function ReportKpi({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "success" | "danger";
+}) {
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
       <p className="text-sm text-muted">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-heading">{value}</p>
+      <p className={`mt-2 text-2xl font-bold ${tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-heading"}`}>
+        {value}
+      </p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
@@ -13,7 +25,15 @@ export function ReportKpi({ label, value, hint }: { label: string; value: string
 
 // Horizontal bars for "how is this total split up". The numbers are printed
 // next to each bar, so the bar itself is purely a visual aid.
-export function BarList({ entries, format }: { entries: Entry[]; format: (value: number) => string }) {
+export function BarList({
+  entries,
+  format,
+  noun = "payment",
+}: {
+  entries: Entry[];
+  format: (value: number) => string;
+  noun?: string;
+}) {
   if (entries.length === 0) return <p className="text-sm text-muted">No data for this period.</p>;
   const max = Math.max(...entries.map((e) => e.value), 1);
   return (
@@ -25,7 +45,8 @@ export function BarList({ entries, format }: { entries: Entry[]; format: (value:
             <span className="font-medium text-heading">
               {format(entry.value)}
               <span className="ml-2 font-normal text-muted">
-                {entry.count} payment{entry.count === 1 ? "" : "s"}
+                {entry.count} {noun}
+                {entry.count === 1 ? "" : "s"}
               </span>
             </span>
           </div>

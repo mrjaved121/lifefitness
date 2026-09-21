@@ -22,6 +22,8 @@ import {
   type ReportTab,
 } from "@/lib/reports";
 import type { MemberStatus } from "@/types/database";
+import { expenseCategoryLabel, formatMonth, monthlyProfit, sumAmounts } from "@/lib/expenses";
+import { withMigrationHint } from "@/lib/migrations";
 import { BarList, PillLink, ReportCard, ReportKpi } from "./ReportParts";
 
 const PAYMENT_ROW_LIMIT = 300;
@@ -48,6 +50,14 @@ type MemberRow = {
   plans: { name: string } | null;
 };
 
+type ExpenseRow = {
+  id: string;
+  category: string;
+  amount: number | string;
+  expense_date: string;
+  notes: string | null;
+};
+
 const inputClass =
   "mt-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-heading focus:border-primary focus:outline-none";
 
@@ -72,7 +82,7 @@ export default async function ReportsPage({
   const needBalances = tab === "members";
   const empty = { data: [] as unknown[], error: null };
 
-  const [paymentsRes, membersRes, balancesRes, checkInsRes] = await Promise.all([
+  const [paymentsRes, membersRes, balancesRes, checkInsRes, expensesRes] = await Promise.all([
     needPayments
       ? fetchAll((from, to) =>
           supabase
@@ -103,12 +113,31 @@ export default async function ReportsPage({
     tab === "daily"
       ? supabase.from("check_ins").select("id", { count: "exact", head: true }).eq("check_in_date", day)
       : Promise.resolve({ count: null as number | null, error: null }),
+    // Expenses are owner-only (resolveTab already keeps everyone else off this tab).
+    tab === "profit"
+      ? fetchAll((from, to) =>
+          supabase
+            .from("expenses")
+            .select("id, category, amount, expense_date, notes")
+            .gte("expense_date", range.start)
+            .lte("expense_date", range.end)
+            .order("expense_date", { ascending: false })
+            .order("id")
+            .range(from, to)
+        )
+      : Promise.resolve(empty),
   ]);
 
   const payments = paymentsRes.data as PaymentRow[];
   const members = membersRes.data as MemberRow[];
   const balances = balancesRes.data as BalanceRow[];
-  const loadError = paymentsRes.error || membersRes.error || balancesRes.error || checkInsRes.error?.message;
+  const expenseRows = expensesRes.data as ExpenseRow[];
+  const loadError =
+    paymentsRes.error ||
+    membersRes.error ||
+    balancesRes.error ||
+    checkInsRes.error?.message ||
+    (expensesRes.error ? withMigrationHint(expensesRes.error) : null);
   const dayCheckIns = checkInsRes.count ?? 0;
 
   const revenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -126,6 +155,13 @@ export default async function ReportsPage({
   const renewals = renewalQueue(members, today, 30);
   const dues = duesQueue(members, balances);
   const totalOutstanding = dues.reduce((sum, d) => sum + d.outstanding, 0);
+
+  // Profit is cash-basis: money collected in the period minus money spent in it.
+  const totalExpenses = sumAmounts(expenseRows);
+  const profit = Math.round((revenue - totalExpenses) * 100) / 100;
+  const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : null;
+  const monthRows = monthlyProfit(payments, expenseRows, range.start, range.end);
+  const byCategory = groupSum(expenseRows, (e) => expenseCategoryLabel(e.category), (e) => Number(e.amount));
 
   const isCustom = range.preset === null;
   function href(next: { tab?: ReportTab; preset?: RangePreset }) {
@@ -149,10 +185,16 @@ export default async function ReportsPage({
     { key: "daily", label: "Daily" },
     { key: "members", label: "Members" },
     { key: "revenue", label: "Revenue" },
-    ...(owner ? [{ key: "staff" as const, label: "Staff" }] : []),
+    ...(owner
+      ? [
+          { key: "profit" as const, label: "Profit" },
+          { key: "staff" as const, label: "Staff" },
+        ]
+      : []),
   ];
 
   const exportRevenueHref = `/api/export/revenue?start=${range.start}&end=${range.end}`;
+  const exportProfitHref = `/api/export/profit?start=${range.start}&end=${range.end}`;
 
   return (
     <div className="space-y-6">
@@ -606,6 +648,79 @@ export default async function ReportsPage({
                 Showing the {PAYMENT_ROW_LIMIT} most recent of {payments.length.toLocaleString()}. The Excel export has all of them.
               </p>
             )}
+          </ReportCard>
+        </div>
+      )}
+
+      {tab === "profit" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <ReportKpi label="Revenue" value={formatCurrency(revenue)} hint="Collected in this period" />
+            <ReportKpi label="Expenses" value={formatCurrency(totalExpenses)} hint={`${expenseRows.length} entr${expenseRows.length === 1 ? "y" : "ies"}`} />
+            <ReportKpi
+              label="Profit"
+              value={formatCurrency(profit)}
+              tone={profit < 0 ? "danger" : profit > 0 ? "success" : undefined}
+              hint={profit < 0 ? "Spent more than was collected" : undefined}
+            />
+            <ReportKpi label="Profit margin" value={margin === null ? "—" : `${margin}%`} hint="Profit as a share of revenue" />
+          </div>
+
+          <ReportCard
+            title="Month by month"
+            action={
+              <a href={exportProfitHref} className={buttonVariants.primary}>
+                Export to Excel
+              </a>
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-muted">
+                    <th className="py-2 pr-3">Month</th>
+                    <th className="px-3 py-2 text-right">Revenue</th>
+                    <th className="px-3 py-2 text-right">Expenses</th>
+                    <th className="px-3 py-2 text-right">Profit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {monthRows.map((row) => (
+                    <tr key={row.month}>
+                      <td className="py-2.5 pr-3 text-heading">{formatMonth(row.month)}</td>
+                      <td className="px-3 py-2.5 text-right text-body">{formatCurrency(row.revenue)}</td>
+                      <td className="px-3 py-2.5 text-right text-body">{formatCurrency(row.expenses)}</td>
+                      <td className={`px-3 py-2.5 text-right font-medium ${row.profit < 0 ? "text-danger" : "text-heading"}`}>
+                        {formatCurrency(row.profit)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="py-2.5 pr-3 font-semibold text-heading">Total</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-heading">{formatCurrency(revenue)}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-heading">{formatCurrency(totalExpenses)}</td>
+                    <td className={`px-3 py-2.5 text-right font-semibold ${profit < 0 ? "text-danger" : "text-heading"}`}>
+                      {formatCurrency(profit)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              Revenue is money actually collected in each month (payments recorded), not the price of memberships sold. Profit is
+              collected minus spent.
+            </p>
+          </ReportCard>
+
+          <ReportCard
+            title="Expenses by category"
+            action={
+              <Link href="/expenses" className={buttonVariants.secondary}>
+                Manage expenses
+              </Link>
+            }
+          >
+            <BarList entries={byCategory} format={formatCurrency} noun="expense" />
           </ReportCard>
         </div>
       )}

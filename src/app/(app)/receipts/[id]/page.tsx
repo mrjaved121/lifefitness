@@ -5,6 +5,7 @@ import { PrintButton } from "@/components/PrintButton";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { methodLabel } from "@/lib/reports";
 import { receiptNumber } from "@/lib/receipt";
+import { GYM_NAME } from "@/lib/brand";
 
 type ReceiptRow = {
   id: string;
@@ -59,7 +60,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
       <div className="rounded-xl border border-border bg-surface p-6 print:rounded-none print:border-0 print:p-0">
         <div className="border-b border-border pb-4 text-center">
-          <p className="text-xl font-bold text-heading">GymDesk</p>
+          <p className="text-xl font-bold text-heading">{GYM_NAME}</p>
           <p className="mt-1 text-xs tracking-wide text-muted uppercase">Payment receipt</p>
         </div>
 

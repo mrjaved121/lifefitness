@@ -113,7 +113,13 @@ export default async function MembersPage({
           <h1 className="text-2xl font-bold text-heading">Members</h1>
           <p className="mt-1 text-sm text-body">Manage memberships, plans and member information.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/members/inactive" className={buttonVariants.secondary}>
+            Stopped coming
+          </Link>
+          <Link href="/members/cards" className={buttonVariants.secondary}>
+            Cards
+          </Link>
           <Link href="/members/import" className={buttonVariants.secondary}>
             Import
           </Link>

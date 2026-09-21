@@ -6,6 +6,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { LinkButton } from "@/components/LinkButton";
 import { Avatar } from "@/components/Avatar";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DEFAULT_INACTIVE_DAYS, inactiveFilter } from "@/lib/activity";
 import {
   formatCurrency,
   formatDate,
@@ -38,7 +39,13 @@ export default async function DashboardPage() {
   // Two queries instead of many separate count queries: pull the fields
   // needed for every KPI/list on this page once each, then aggregate in JS.
   // fetchAll pages through the results - a plain select() is capped at 1000 rows.
-  const [{ data: allMembers }, { data: chartPayments }, { count: checkedInTodayCount }, { data: duesRows }] = await Promise.all([
+  const [
+    { data: allMembers },
+    { data: chartPayments },
+    { count: checkedInTodayCount },
+    { data: duesRows },
+    { count: inactiveCount },
+  ] = await Promise.all([
     fetchAll((from, to) =>
       supabase
         .from("members")
@@ -60,6 +67,14 @@ export default async function DashboardPage() {
     fetchAll((from, to) =>
       supabase.from("member_balances").select("member_id, outstanding").gt("outstanding", 0).order("member_id").range(from, to)
     ),
+    // A count only. Any error (e.g. a gym whose database hasn't had migration
+    // 0008 yet) just leaves it null, so the rest of the dashboard still loads.
+    supabase
+      .from("member_activity")
+      .select("member_id", { count: "exact", head: true })
+      .eq("status", "active")
+      .gte("end_date", today)
+      .or(inactiveFilter(DEFAULT_INACTIVE_DAYS, today)),
   ]);
 
   const members = allMembers || [];
@@ -153,6 +168,11 @@ export default async function DashboardPage() {
       text: `${expired} membership${expired === 1 ? "" : "s"} already expired`,
       href: "/members?status=expired",
     },
+    (inactiveCount ?? 0) > 0 && {
+      dot: "bg-warning",
+      text: `${inactiveCount} active member${inactiveCount === 1 ? " hasn't" : "s haven't"} visited in ${DEFAULT_INACTIVE_DAYS}+ days`,
+      href: "/members/inactive",
+    },
     newToday > 0 && {
       dot: "bg-info",
       text: `${newToday} new member${newToday === 1 ? "" : "s"} today`,
@@ -179,7 +199,12 @@ export default async function DashboardPage() {
             </h1>
             <p className="mt-1 text-sm text-white/80">Here&apos;s what&apos;s happening at your gym today.</p>
           </div>
-          <LinkButton href="/members/new">+ Add Member</LinkButton>
+          <div className="flex flex-wrap items-center gap-3">
+            <LinkButton href="/checkin" variant="secondary">
+              Scan check-in
+            </LinkButton>
+            <LinkButton href="/members/new">+ Add Member</LinkButton>
+          </div>
         </div>
       </div>
 

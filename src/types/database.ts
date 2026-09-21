@@ -1,6 +1,7 @@
-export type Role = "owner" | "front_desk" | "super_admin";
+export type Role = "owner" | "front_desk" | "super_admin" | "pending";
 export type MemberStatus = "active" | "expired" | "frozen";
 export type PaymentMethod = "cash" | "card" | "bank_transfer";
+export type ExpenseCategory = "rent" | "salaries" | "utilities" | "equipment" | "maintenance" | "marketing" | "other";
 
 export interface Profile {
   id: string;
@@ -46,6 +47,31 @@ export interface Payment {
   notes: string | null;
   recorded_by: string | null;
   created_at: string;
+}
+
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  amount: number | string;
+  expense_date: string;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+}
+
+// One row of the member_activity view (see supabase/schema.sql).
+export interface MemberActivity {
+  member_id: string;
+  member_no: number | null;
+  full_name: string;
+  phone: string | null;
+  photo_url: string | null;
+  status: MemberStatus;
+  end_date: string;
+  created_at: string;
+  plan_name: string | null;
+  last_visit: string | null;
+  total_visits: number | string;
 }
 
 export interface MemberWithPlan extends Member {

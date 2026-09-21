@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { BarbellIcon } from "./BarbellIcon";
 import { UsersIcon, WalletIcon, BellIcon } from "./icons";
+import { GYM_NAME } from "@/lib/brand";
 
 const FEATURES = [
   { icon: UsersIcon, label: "Manage members, plans & renewals" },
@@ -23,7 +24,7 @@ export function GymHero() {
 
       <div className="relative flex w-full max-w-xs flex-col items-center text-center">
         <BarbellIcon className="h-16 w-16 text-primary" />
-        <h1 className="mt-6 text-3xl font-bold">GymDesk</h1>
+        <h1 className="mt-6 text-3xl font-bold">{GYM_NAME}</h1>
         <p className="mt-2 text-sm text-white/70">Membership, billing, and front desk — all in one place.</p>
 
         <div className="mt-10 w-full space-y-4 text-left">
