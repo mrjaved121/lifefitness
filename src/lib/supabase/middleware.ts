@@ -4,6 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/login", "/signup"];
 
 export async function updateSession(request: NextRequest) {
+  // Cron routes check CRON_SECRET themselves and are called with no login session.
+  if (request.nextUrl.pathname.startsWith("/api/cron/")) return NextResponse.next({ request });
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
