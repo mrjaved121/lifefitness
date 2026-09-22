@@ -6,7 +6,16 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { Avatar } from "@/components/Avatar";
 import { CheckInButton } from "@/components/CheckInButton";
 import { buttonVariants } from "@/components/buttonStyles";
-import { daysUntil, emailDuesLink, formatCurrency, formatDate, todayStr, whatsAppDuesLink } from "@/lib/format";
+import {
+  daysUntil,
+  emailDuesLink,
+  emailReminderLink,
+  formatCurrency,
+  formatDate,
+  todayStr,
+  whatsAppDuesLink,
+  whatsAppReminderLink,
+} from "@/lib/format";
 import { deleteMember, toggleFreeze } from "@/lib/actions/members";
 import { MemberTabs } from "./MemberTabs";
 
@@ -93,6 +102,33 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
           <p className="mt-1 text-xs text-muted">
             {days === 0 ? "Expires today" : days > 0 ? `${days} days remaining` : `Expired ${Math.abs(days)} days ago`}
           </p>
+        )}
+        {/* A renewal reminder button, not just the outstanding-balance one below:
+            once status flips to 'expired' the dashboard's 7-day reminder list no
+            longer shows this member (it only lists active members), so without
+            this row an expired member had no WhatsApp/email reminder anywhere.
+            Shown for expired members and for active ones expiring within a week;
+            an active member with months left doesn't need a renewal nudge. */}
+        {(member.status === "expired" || (member.status === "active" && days <= 7)) && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {member.phone ? (
+              <a
+                href={whatsAppReminderLink(member.phone, member.full_name, member.end_date)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-success hover:underline"
+              >
+                Remind on WhatsApp
+              </a>
+            ) : (
+              !member.email && <span className="text-muted">Add a phone number or email to send a renewal reminder.</span>
+            )}
+            {member.email && (
+              <a href={emailReminderLink(member.email, member.full_name, member.end_date)} className="font-medium text-info hover:underline">
+                Remind by email
+              </a>
+            )}
+          </div>
         )}
         {outstanding > 0 && (
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
