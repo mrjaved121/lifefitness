@@ -6,6 +6,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { methodLabel } from "@/lib/reports";
 import { receiptNumber } from "@/lib/receipt";
 import { GYM_NAME } from "@/lib/brand";
+import { absoluteUrl } from "@/lib/site";
+import { svgQrCode } from "@/lib/qrSvg";
 
 type ReceiptRow = {
   id: string;
@@ -37,6 +39,12 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     .eq("member_id", payment.member_id)
     .maybeSingle();
   const outstanding = Number(balance?.outstanding ?? 0);
+
+  // Lets a lost or faded paper receipt be pulled back up: scanning it opens
+  // this same page. Whoever scans it still needs a staff login to see it -
+  // there's no public member account in this app - so today this mainly
+  // helps staff find an old receipt fast rather than a member self-serve.
+  const qr = await svgQrCode(await absoluteUrl(`/receipts/${payment.id}`));
 
   const member = payment.members;
   const rows: { label: string; value: string }[] = [
@@ -90,7 +98,17 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
-        <p className="mt-6 text-center text-xs text-muted">Thank you for your payment.</p>
+        <div className="mt-6 flex flex-col items-center gap-1.5 border-t border-border pt-4">
+          <div
+            className="h-28 w-28 [&>svg]:h-full [&>svg]:w-full"
+            role="img"
+            aria-label="QR code to view this receipt online"
+            dangerouslySetInnerHTML={{ __html: qr }}
+          />
+          <p className="text-center text-[11px] text-muted">Scan to look up this receipt again</p>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-muted">Thank you for your payment.</p>
       </div>
     </div>
   );
